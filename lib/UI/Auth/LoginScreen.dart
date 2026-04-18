@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
+import 'package:solobytes/UI/Auth/EmailSignUpScreen.dart';
 import 'package:solobytes/Widgets/AuthButton.dart';
 import 'package:solobytes/Widgets/AuthContainer.dart';
 
@@ -200,7 +201,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "Dont have an account? ",
+                    "Don't have an account? ",
                     style: TextStyle(
                       fontSize: 16,
                       color: Color(0xff778462),
@@ -210,7 +211,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      _signInWithGoogle();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const EmailSignUpScreen(),
+                        ),
+                      );
                     },
                     child: Text(
                       "Sign Up",

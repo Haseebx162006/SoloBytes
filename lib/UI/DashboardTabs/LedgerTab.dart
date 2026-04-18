@@ -1,0 +1,287 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solobytes/Providers/receivables_provider.dart';
+import 'package:solobytes/domain/entities/receivable.dart';
+
+class LedgerTab extends ConsumerStatefulWidget {
+  const LedgerTab({Key? key}) : super(key: key);
+
+  @override
+  ConsumerState<LedgerTab> createState() => _LedgerTabState();
+}
+
+class _LedgerTabState extends ConsumerState<LedgerTab>
+    with SingleTickerTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ledger'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Receivables (Owed to Us)'),
+            Tab(text: 'Payables (We Owe)'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _LedgerListView(
+            provider: receivablesProvider,
+            entryType: LedgerEntryType.receivable,
+          ),
+          _LedgerListView(
+            provider: payablesProvider,
+            entryType: LedgerEntryType.payable,
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _showAddLedgerDialog(
+            context,
+            ref,
+            _tabController.index == 0
+                ? LedgerEntryType.receivable
+                : LedgerEntryType.payable,
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showAddLedgerDialog(
+    BuildContext context,
+    WidgetRef ref,
+    LedgerEntryType type,
+  ) {
+    final formKey = GlobalKey<FormState>();
+    final amountController = TextEditingController();
+    final partyController = TextEditingController();
+    DateTime? selectedDate = DateTime.now().add(const Duration(days: 7));
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            type == LedgerEntryType.receivable
+                ? 'Add Receivable'
+                : 'Add Payable',
+          ),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: partyController,
+                        decoration: InputDecoration(
+                          labelText: type == LedgerEntryType.receivable
+                              ? 'Customer Name'
+                              : 'Vendor Name',
+                        ),
+                        validator: (value) =>
+                            value == null || value.isEmpty ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: amountController,
+                        decoration: const InputDecoration(labelText: 'Amount'),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return 'Required';
+                          if (double.tryParse(value) == null) {
+                            return 'Invalid number';
+                          }
+                          return null;
+                        },
+                      ),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Due Date'),
+                        subtitle: Text(
+                          selectedDate!.toLocal().toString().split(' ')[0],
+                        ),
+                        trailing: const Icon(Icons.calendar_today),
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate!,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 3650),
+                            ),
+                          );
+                          if (date != null) {
+                            setState(() {
+                              selectedDate = date;
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final user = ref.read(authUserProvider);
+                  if (user != null) {
+                    final useCase = ref.read(trackReceivableUseCaseProvider);
+                    await useCase.execute(
+                      entryType: type,
+                      userId: user.uid,
+                      name: partyController.text,
+                      amount: double.parse(amountController.text),
+                      dueDate: selectedDate!,
+                    );
+                    Navigator.of(context).pop();
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LedgerListView extends ConsumerWidget {
+  final Provider<AsyncValue<List<ReceivableEntity>>> provider;
+  final LedgerEntryType entryType;
+
+  const _LedgerListView({
+    Key? key,
+    required this.provider,
+    required this.entryType,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final listAsync = ref.watch(provider);
+
+    return listAsync.when(
+      data: (items) {
+        if (items.isEmpty) {
+          return const Center(child: Text('No entries found.'));
+        }
+        return ListView.builder(
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final isPaid = item.isPaid;
+            return ListTile(
+              leading: Icon(
+                entryType == LedgerEntryType.receivable
+                    ? Icons.arrow_downward
+                    : Icons.arrow_upward,
+                color: entryType == LedgerEntryType.receivable
+                    ? Colors.green
+                    : Colors.red,
+              ),
+              title: Text(item.partyName),
+              subtitle: Text(
+                'Due: ${item.dueDate.toLocal().toString().split(' ')[0]}',
+              ),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '\$${item.amount.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    item.status.name.toUpperCase(),
+                    style: TextStyle(
+                      color: isPaid
+                          ? Colors.green
+                          : item.isOverdue
+                          ? Colors.red
+                          : Colors.orange,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+              onTap: isPaid
+                  ? null
+                  : () {
+                      _showMarkPaidDialog(context, ref, item);
+                    },
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: \$err')),
+    );
+  }
+
+  void _showMarkPaidDialog(
+    BuildContext context,
+    WidgetRef ref,
+    ReceivableEntity item,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Mark as Paid'),
+          content: Text(
+            'Are you sure you want to mark ${item.partyName}\'s entry of \$${item.amount.toStringAsFixed(2)} as paid? This will also add a transaction.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                final useCase = ref.read(markPaidUseCaseProvider);
+                await useCase.execute(item.id);
+              },
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}

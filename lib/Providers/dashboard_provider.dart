@@ -12,6 +12,21 @@ class DashboardDateRange {
   final DateTime? startDate;
   final DateTime? endDate;
   final String period;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+
+    return other is DashboardDateRange &&
+        other.startDate == startDate &&
+        other.endDate == endDate &&
+        other.period == period;
+  }
+
+  @override
+  int get hashCode => Object.hash(startDate, endDate, period);
 }
 
 final firestoreProvider = Provider<FirebaseFirestore>((ref) {
