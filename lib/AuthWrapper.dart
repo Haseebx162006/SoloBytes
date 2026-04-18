@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
 import 'package:solobytes/UI/Auth/LoginScreen.dart';
 import 'package:solobytes/UI/Auth/SignUpScreen.dart';
+import 'package:solobytes/UI/DashboardScreen.dart';
 
 class AuthWrapper extends ConsumerWidget {
   const AuthWrapper({super.key});
@@ -25,8 +26,7 @@ class AuthWrapper extends ConsumerWidget {
         }
 
         if (state == AuthAccessState.authenticated) {
-          // Replace with Dashboard screen once UI module is connected.
-          return const signUP();
+          return const DashboardScreen();
         }
 
         return const LoginScreen();

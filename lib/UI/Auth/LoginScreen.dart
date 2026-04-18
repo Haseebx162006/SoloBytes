@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
-import 'package:solobytes/UI/Auth/SignUpScreen.dart';
 import 'package:solobytes/Widgets/AuthButton.dart';
 import 'package:solobytes/Widgets/AuthContainer.dart';
 
@@ -211,10 +210,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => signUP()),
-                      );
+                      _signInWithGoogle();
                     },
                     child: Text(
                       "Sign Up",

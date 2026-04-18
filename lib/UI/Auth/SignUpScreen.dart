@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
-import 'package:solobytes/UI/Auth/LoginScreen.dart';
 import 'package:solobytes/Widgets/AuthButton.dart';
 import 'package:solobytes/Widgets/AuthContainer.dart';
 
@@ -212,7 +211,7 @@ class _signUPState extends ConsumerState<signUP> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "Already have an account? ",
+                    "Use another account? ",
                     style: TextStyle(
                       fontSize: 16,
                       color: Color(0xff778462),
@@ -221,16 +220,11 @@ class _signUPState extends ConsumerState<signUP> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
-                        ),
-                      );
+                    onTap: () async {
+                      await ref.read(authRepositoryProvider).signOut();
                     },
                     child: Text(
-                      "Sign In",
+                      "Sign Out",
                       style: TextStyle(
                         fontSize: 16,
                         color: Color(0xff546A2F),

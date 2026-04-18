@@ -11,12 +11,12 @@ class AuthRepositoryImpl implements AuthRepository {
     GoogleSignIn? googleSignIn,
   }) : _firebaseAuth = firebaseAuth,
        _firestore = firestore ?? FirebaseFirestore.instance,
-      _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
+       _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
 
   final FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
   final GoogleSignIn _googleSignIn;
-    bool _isGoogleSignInInitialized = false;
+  bool _isGoogleSignInInitialized = false;
 
   @override
   Stream<UserEntity?> get authStateChanges {
@@ -41,7 +41,14 @@ class AuthRepositoryImpl implements AuthRepository {
         credential,
       );
 
-      final user = _mapFirebaseUser(userCredential.user);
+      final firebaseUser = userCredential.user;
+      if (firebaseUser == null) {
+        throw const AuthException('Google sign-in failed. Please try again.');
+      }
+
+      await _ensureUserDocument(firebaseUser);
+
+      final user = _mapFirebaseUser(firebaseUser);
 
       if (user == null) {
         throw const AuthException('Google sign-in failed. Please try again.');
@@ -57,6 +64,10 @@ class AuthRepositoryImpl implements AuthRepository {
       throw AuthException(error.description ?? 'Google sign-in failed.');
     } on FirebaseAuthException catch (error) {
       throw AuthException(_mapFirebaseError(error));
+    } on FirebaseException {
+      throw const AuthException(
+        'Unable to initialize your user profile. Please try again.',
+      );
     } on AuthException {
       rethrow;
     } catch (_) {
@@ -76,7 +87,14 @@ class AuthRepositoryImpl implements AuthRepository {
         password: password,
       );
 
-      final user = _mapFirebaseUser(credential.user);
+      final firebaseUser = credential.user;
+      if (firebaseUser == null) {
+        throw const AuthException('Email sign-in failed. Please try again.');
+      }
+
+      await _ensureUserDocument(firebaseUser);
+
+      final user = _mapFirebaseUser(firebaseUser);
       if (user == null) {
         throw const AuthException('Email sign-in failed. Please try again.');
       }
@@ -84,6 +102,12 @@ class AuthRepositoryImpl implements AuthRepository {
       return user;
     } on FirebaseAuthException catch (error) {
       throw AuthException(_mapFirebaseError(error));
+    } on FirebaseException {
+      throw const AuthException(
+        'Unable to initialize your user profile. Please try again.',
+      );
+    } on AuthException {
+      rethrow;
     } catch (_) {
       throw const AuthException('Email sign-in failed. Please try again.');
     }
@@ -117,6 +141,8 @@ class AuthRepositoryImpl implements AuthRepository {
       }
 
       final currentUser = _firebaseAuth.currentUser ?? createdUser;
+      await _ensureUserDocument(currentUser);
+
       final user = _mapFirebaseUser(currentUser);
       if (user == null) {
         throw const AuthException('Sign-up failed. Please try again.');
@@ -125,6 +151,12 @@ class AuthRepositoryImpl implements AuthRepository {
       return user;
     } on FirebaseAuthException catch (error) {
       throw AuthException(_mapFirebaseError(error));
+    } on FirebaseException {
+      throw const AuthException(
+        'Unable to initialize your user profile. Please try again.',
+      );
+    } on AuthException {
+      rethrow;
     } catch (_) {
       throw const AuthException('Sign-up failed. Please try again.');
     }
@@ -132,12 +164,17 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<bool> hasCompletedBusinessProfile(String userId) async {
+    return isUserFullyRegistered(userId);
+  }
+
+  @override
+  Future<bool> isUserFullyRegistered(String userId) async {
     if (userId.trim().isEmpty) {
       return false;
     }
 
     try {
-      final snapshot = await _businessProfileDoc(userId).get();
+      final snapshot = await _userDoc(userId).get();
       if (!snapshot.exists) {
         return false;
       }
@@ -147,10 +184,7 @@ class AuthRepositoryImpl implements AuthRepository {
         return false;
       }
 
-      final businessName = (data['businessName'] ?? '').toString().trim();
-      final businessType = (data['businessType'] ?? '').toString().trim();
-
-      return businessName.isNotEmpty && businessType.isNotEmpty;
+      return data['onboardingCompleted'] == true;
     } on FirebaseException {
       return false;
     } catch (_) {
@@ -165,25 +199,60 @@ class AuthRepositoryImpl implements AuthRepository {
     required String businessType,
     String? businessEmail,
   }) async {
-    if (userId.trim().isEmpty) {
+    final normalizedUserId = userId.trim();
+    final trimmedName = businessName.trim();
+    final trimmedType = businessType.trim();
+
+    if (normalizedUserId.isEmpty) {
       throw const AuthException('User is required to save business profile.');
     }
 
+    if (trimmedName.isEmpty || trimmedType.isEmpty) {
+      throw const AuthException('Business name and type are required.');
+    }
+
     try {
-      final docRef = _businessProfileDoc(userId);
-      final snapshot = await docRef.get();
+      final userDocRef = _userDoc(normalizedUserId);
+      final userSnapshot = await userDocRef.get();
+      final userData = userSnapshot.data() ?? const <String, dynamic>{};
 
-      final payload = <String, dynamic>{
-        'businessName': businessName.trim(),
-        'businessType': businessType.trim(),
-        'businessEmail': (businessEmail ?? '').trim(),
-      };
-
-      if (!snapshot.exists) {
-        payload['createdAt'] = FieldValue.serverTimestamp();
+      var resolvedEmail = (businessEmail ?? '').trim();
+      if (resolvedEmail.isEmpty) {
+        resolvedEmail = (userData['email'] ?? '').toString().trim();
+      }
+      if (resolvedEmail.isEmpty) {
+        resolvedEmail = (_firebaseAuth.currentUser?.email ?? '').trim();
       }
 
-      await docRef.set(payload, SetOptions(merge: true));
+      final userPayload = <String, dynamic>{
+        'uid': normalizedUserId,
+        'email': resolvedEmail,
+        'businessName': trimmedName,
+        'businessType': trimmedType,
+        'onboardingCompleted': true,
+      };
+
+      if (!userSnapshot.exists || !userData.containsKey('createdAt')) {
+        userPayload['createdAt'] = FieldValue.serverTimestamp();
+      }
+
+      await userDocRef.set(userPayload, SetOptions(merge: true));
+
+      // Keep legacy businessProfile doc in sync for backward compatibility.
+      final legacyDocRef = _businessProfileDoc(normalizedUserId);
+      final legacySnapshot = await legacyDocRef.get();
+
+      final legacyPayload = <String, dynamic>{
+        'businessName': trimmedName,
+        'businessType': trimmedType,
+        'businessEmail': resolvedEmail,
+      };
+
+      if (!legacySnapshot.exists) {
+        legacyPayload['createdAt'] = FieldValue.serverTimestamp();
+      }
+
+      await legacyDocRef.set(legacyPayload, SetOptions(merge: true));
     } on FirebaseException catch (error) {
       throw AuthException(
         error.message ?? 'Unable to save business profile. Please try again.',
@@ -218,6 +287,55 @@ class AuthRepositoryImpl implements AuthRepository {
     _isGoogleSignInInitialized = true;
   }
 
+  Future<void> _ensureUserDocument(User user) async {
+    final normalizedUserId = user.uid.trim();
+    if (normalizedUserId.isEmpty) {
+      throw const AuthException('Invalid authenticated user.');
+    }
+
+    final userDocRef = _userDoc(normalizedUserId);
+    final snapshot = await userDocRef.get();
+    final authEmail = (user.email ?? '').trim();
+
+    if (!snapshot.exists) {
+      await userDocRef.set({
+        'uid': normalizedUserId,
+        'email': authEmail,
+        'businessName': null,
+        'businessType': null,
+        'onboardingCompleted': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      return;
+    }
+
+    final data = snapshot.data() ?? const <String, dynamic>{};
+    final updates = <String, dynamic>{};
+
+    if ((data['uid'] ?? '').toString().trim().isEmpty) {
+      updates['uid'] = normalizedUserId;
+    }
+    if ((data['email'] ?? '').toString().trim().isEmpty && authEmail.isNotEmpty) {
+      updates['email'] = authEmail;
+    }
+    if (!data.containsKey('businessName')) {
+      updates['businessName'] = null;
+    }
+    if (!data.containsKey('businessType')) {
+      updates['businessType'] = null;
+    }
+    if (!data.containsKey('onboardingCompleted')) {
+      updates['onboardingCompleted'] = false;
+    }
+    if (!data.containsKey('createdAt')) {
+      updates['createdAt'] = FieldValue.serverTimestamp();
+    }
+
+    if (updates.isNotEmpty) {
+      await userDocRef.set(updates, SetOptions(merge: true));
+    }
+  }
+
   UserEntity? _mapFirebaseUser(User? user) {
     if (user == null) {
       return null;
@@ -228,6 +346,10 @@ class AuthRepositoryImpl implements AuthRepository {
       email: user.email,
       isAnonymous: user.isAnonymous,
     );
+  }
+
+  DocumentReference<Map<String, dynamic>> _userDoc(String userId) {
+    return _firestore.collection('users').doc(userId);
   }
 
   DocumentReference<Map<String, dynamic>> _businessProfileDoc(String userId) {

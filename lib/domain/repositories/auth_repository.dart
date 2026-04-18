@@ -13,6 +13,8 @@ abstract class AuthRepository {
     String? name,
   });
 
+  Future<bool> isUserFullyRegistered(String userId);
+
   Future<bool> hasCompletedBusinessProfile(String userId);
 
   Future<void> saveBusinessProfile({

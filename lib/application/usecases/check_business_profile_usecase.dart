@@ -10,6 +10,6 @@ class CheckBusinessProfileUseCase {
       return Future.value(false);
     }
 
-    return _authRepository.hasCompletedBusinessProfile(userId);
+    return _authRepository.isUserFullyRegistered(userId);
   }
 }
