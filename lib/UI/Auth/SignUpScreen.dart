@@ -1,32 +1,98 @@
 import 'package:flutter/material.dart';
-import 'package:solobytes/Controllers/AuthController.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solobytes/Providers/auth_provider.dart';
 import 'package:solobytes/UI/Auth/LoginScreen.dart';
 import 'package:solobytes/Widgets/AuthButton.dart';
 import 'package:solobytes/Widgets/AuthContainer.dart';
 
-class signUP extends StatefulWidget {
+class signUP extends ConsumerStatefulWidget {
   const signUP({super.key});
 
   @override
-  State<signUP> createState() => _signUPState();
+  ConsumerState<signUP> createState() => _signUPState();
 }
 
-class _signUPState extends State<signUP> {
-  TextEditingController nameController = TextEditingController();
-  TextEditingController emailController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
-  final Authcontroller _authcontroller = Authcontroller();
+class _signUPState extends ConsumerState<signUP> {
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController businessTypeController = TextEditingController();
+
+  String _friendlyMessage(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '').trim();
+    if (message.isEmpty) {
+      return 'Unable to save business profile';
+    }
+    return message;
+  }
+
+  Future<void> _saveBusinessProfile() async {
+    if (ref.read(businessSetupProvider)) {
+      return;
+    }
+
+    final user = ref.read(authUserProvider);
+    if (user == null) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in with Google first.')),
+      );
+      return;
+    }
+
+    ref.read(businessSetupProvider.notifier).start();
+
+    try {
+      await ref
+          .read(saveBusinessProfileUseCaseProvider)
+          .execute(
+            userId: user.uid,
+            businessName: nameController.text,
+            businessType: businessTypeController.text,
+            businessEmail: emailController.text.trim().isEmpty
+                ? null
+                : emailController.text.trim(),
+          );
+
+      ref.invalidate(businessProfileProvider);
+      ref.invalidate(authAccessStateProvider);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Business profile saved successfully.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_friendlyMessage(error))));
+    } finally {
+      if (mounted) {
+        ref.read(businessSetupProvider.notifier).stop();
+      }
+    }
+  }
 
   @override
   void dispose() {
     nameController.dispose();
     emailController.dispose();
-    passwordController.dispose();
+    businessTypeController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = ref.watch(businessSetupProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
@@ -39,7 +105,7 @@ class _signUPState extends State<signUP> {
               Align(
                 alignment: Alignment.topCenter,
                 child: Text(
-                  "Welcome Back",
+                  "Business Setup",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -51,7 +117,7 @@ class _signUPState extends State<signUP> {
               Align(
                 alignment: Alignment.topCenter,
                 child: Text(
-                  "SignUp To Echo",
+                  "Complete Your Profile",
                   style: TextStyle(
                     fontSize: 32,
                     color: Colors.black,
@@ -64,7 +130,7 @@ class _signUPState extends State<signUP> {
               Align(
                 alignment: Alignment.topCenter,
                 child: Text(
-                  "Create your credentials to start Chatting",
+                  "Add business details to continue",
                   style: TextStyle(
                     fontSize: 15,
                     color: Color(0xff778462),
@@ -78,7 +144,7 @@ class _signUPState extends State<signUP> {
               Align(
                 alignment: Alignment.topLeft,
                 child: Text(
-                  " Name",
+                  " Business Name",
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.black,
@@ -89,7 +155,7 @@ class _signUPState extends State<signUP> {
               ),
               SizedBox(height: 8),
               AuthContainer(
-                text: "Enter your name",
+                text: "Enter business name",
                 obscureText: false,
                 controller: nameController,
               ),
@@ -99,7 +165,7 @@ class _signUPState extends State<signUP> {
               Align(
                 alignment: Alignment.topLeft,
                 child: Text(
-                  " Email",
+                  " Business Email (Optional)",
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.black,
@@ -110,7 +176,7 @@ class _signUPState extends State<signUP> {
               ),
               SizedBox(height: 8),
               AuthContainer(
-                text: "Enter your email",
+                text: "Enter business email",
                 obscureText: false,
                 controller: emailController,
               ),
@@ -119,7 +185,7 @@ class _signUPState extends State<signUP> {
               Align(
                 alignment: Alignment.topLeft,
                 child: Text(
-                  " Password",
+                  " Type of Business",
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.black,
@@ -130,21 +196,15 @@ class _signUPState extends State<signUP> {
               ),
               SizedBox(height: 8),
               AuthContainer(
-                text: "Enter your password",
-                obscureText: true,
-                controller: passwordController,
+                text: "Enter business type",
+                obscureText: false,
+                controller: businessTypeController,
               ),
               SizedBox(height: 40),
               AuthButton(
-                text: "Sign Up",
-                onpressed: () {
-                  _authcontroller.signUp(
-                    context,
-                    nameController.text.trim(),
-                    emailController.text.trim(),
-                    passwordController.text.trim(),
-                  );
-                },
+                text: "Save & Continue",
+                isLoading: isLoading,
+                onpressed: isLoading ? null : _saveBusinessProfile,
               ),
               SizedBox(height: 35),
 

@@ -19,9 +19,9 @@ class AuthService {
     }
   }
 
-  Future<String?> signInAnonymously() async {
+  Future<String?> signInWithGoogle() async {
     try {
-      await _authRepository.signInAnonymously();
+      await _authRepository.signInWithGoogle();
       return null;
     } catch (e) {
       return e.toString();

@@ -29,6 +29,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return 'Invalid credentials';
     }
 
+    if (lower.contains('cancelled') || lower.contains('popup-closed-by-user')) {
+      return 'Google sign-in was cancelled.';
+    }
+
     if (raw.isEmpty) {
       return 'Login failed';
     }
@@ -80,9 +84,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
-  Future<void> _signInAnonymously() async {
+  Future<void> _signInWithGoogle() async {
     await _runAuthAction(() async {
-      await ref.read(loginUseCaseProvider).executeAnonymous();
+      await ref.read(loginUseCaseProvider).executeGoogle();
     });
   }
 
@@ -134,7 +138,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Align(
                 alignment: Alignment.topCenter,
                 child: Text(
-                  "Enter your credentials to Grow",
+                  "Enter your credentials to Grow your Business",
                   style: TextStyle(
                     fontSize: 15,
                     color: Color(0xff778462),
@@ -253,7 +257,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Opacity(
                   opacity: isLoading ? 0.65 : 1,
                   child: GestureDetector(
-                    onTap: _signInAnonymously,
+                    onTap: _signInWithGoogle,
                     child: Container(
                       width: double.infinity,
                       height: 50,
@@ -273,10 +277,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     color: Color(0xff546A2F),
                                   ),
                                 )
-                              : const Icon(Icons.person_outline, size: 22),
+                              : const Icon(Icons.g_mobiledata, size: 28),
                           const SizedBox(width: 10),
                           const Text(
-                            "Continue as Guest",
+                            "Sign in with Google",
                             style: TextStyle(
                               fontSize: 16,
                               fontFamily: "Poppins",

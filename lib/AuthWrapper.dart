@@ -9,15 +9,23 @@ class AuthWrapper extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authStateChangesProvider);
+    final accessState = ref.watch(authAccessStateProvider);
 
-    return authState.when(
+    return accessState.when(
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (_, _) => const LoginScreen(),
-      data: (user) {
-        if (user != null) {
-          // Uses the current authenticated destination screen.
+      data: (state) {
+        if (state == AuthAccessState.unauthenticated) {
+          return const LoginScreen();
+        }
+
+        if (state == AuthAccessState.needsBusinessSetup) {
+          return const signUP();
+        }
+
+        if (state == AuthAccessState.authenticated) {
+          // Replace with Dashboard screen once UI module is connected.
           return const signUP();
         }
 

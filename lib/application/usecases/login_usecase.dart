@@ -6,8 +6,8 @@ class LoginUseCase {
 
   final AuthRepository _authRepository;
 
-  Future<UserEntity> executeAnonymous() {
-    return _authRepository.signInAnonymously();
+  Future<UserEntity> executeGoogle() {
+    return _authRepository.signInWithGoogle();
   }
 
   Future<UserEntity> executeEmail(String email, String password) {
