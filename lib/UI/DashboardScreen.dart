@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
 import 'package:solobytes/UI/DashboardTabs/ImportTab.dart';
-import 'package:solobytes/UI/DashboardTabs/LedgerTab.dart';
-import 'package:solobytes/UI/DashboardTabs/OverviewTab.dart';
-import 'package:solobytes/UI/DashboardTabs/TransactionsTab.dart';
 
+import 'package:solobytes/UI/DashboardTabs/OverviewTab.dart';
+import 'package:solobytes/domain/entities/Ledgertab.dart';
+import 'package:solobytes/domain/entities/TransactionsTab.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);

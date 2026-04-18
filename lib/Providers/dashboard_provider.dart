@@ -1,85 +1,89 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:solobytes/Providers/auth_provider.dart';
-import 'package:solobytes/Providers/receivables_provider.dart';
-import 'package:solobytes/application/usecases/get_summary_usecase.dart';
-import 'package:solobytes/data/repositories/dashboard_repository_impl.dart';
-import 'package:solobytes/domain/entities/cash_summary.dart';
+import 'package:solobytes/Providers/transactions_provider.dart';
+import 'package:solobytes/domain/entities/transaction.dart';
 
-class DashboardDateRange {
-  const DashboardDateRange({this.startDate, this.endDate, this.period = 'all'});
-
-  final DateTime? startDate;
-  final DateTime? endDate;
+class CashSummary {
+  final double netBalance;
+  final double totalSales;
+  final double totalExpenses;
+  final double totalOwedToUs;
+  final double totalWeOwe;
+  final int unpaidReceivables;
+  final int unpaidPayables;
+  final String topExpenseCategory;
   final String period;
 
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) {
-      return true;
-    }
-
-    return other is DashboardDateRange &&
-        other.startDate == startDate &&
-        other.endDate == endDate &&
-        other.period == period;
-  }
-
-  @override
-  int get hashCode => Object.hash(startDate, endDate, period);
+  const CashSummary({
+    required this.netBalance,
+    required this.totalSales,
+    required this.totalExpenses,
+    required this.totalOwedToUs,
+    required this.totalWeOwe,
+    required this.unpaidReceivables,
+    required this.unpaidPayables,
+    required this.topExpenseCategory,
+    required this.period,
+  });
 }
 
-final firestoreProvider = Provider<FirebaseFirestore>((ref) {
-  return FirebaseFirestore.instance;
-});
-
-final dashboardRepositoryProvider = Provider<DashboardRepositoryImpl>((ref) {
-  final firestore = ref.watch(firestoreProvider);
-  return DashboardRepositoryImpl(firestore: firestore);
-});
-
-final getSummaryUseCaseProvider = Provider<GetSummaryUseCase>((ref) {
-  final repository = ref.watch(dashboardRepositoryProvider);
-  return GetSummaryUseCase(repository);
-});
-
 final dashboardProvider = FutureProvider<CashSummary>((ref) async {
-  final accessState = await ref.watch(authAccessStateProvider.future);
-  if (accessState != AuthAccessState.authenticated) {
-    throw Exception('Complete business setup to access dashboard.');
-  }
+  final transactionsAsync = ref.watch(transactionsProvider);
 
-  // Recalculate summary whenever receivables/payables change.
-  ref.watch(receivablesProvider);
-  ref.watch(payablesProvider);
+  return transactionsAsync.when(
+    data: (transactions) {
+      double totalSales = 0;
+      double totalExpenses = 0;
 
-  final useCase = ref.watch(getSummaryUseCaseProvider);
-  try {
-    return await useCase.execute();
-  } catch (_) {
-    throw Exception('Unable to load dashboard summary');
-  }
+      final Map<String, double> expenseCategoryMap = {};
+
+      // 🔥 CORE FIX: SAFE CALCULATION
+      for (final tx in transactions) {
+        final amount = tx.amount.abs(); // phandles negative + positive
+
+        if (tx.type == TxType.expense) {
+          totalExpenses += amount;
+
+          // Track expense categories
+          expenseCategoryMap[tx.category] =
+              (expenseCategoryMap[tx.category] ?? 0) + amount;
+        } else {
+          // sale + income treated as positive inflow
+          totalSales += amount;
+        }
+      }
+
+      final netBalance = totalSales - totalExpenses;
+
+      // 🔹 Find top expense category
+      String topCategory = '';
+      double maxExpense = 0;
+
+      expenseCategoryMap.forEach((category, value) {
+        if (value > maxExpense) {
+          maxExpense = value;
+          topCategory = category;
+        }
+      });
+
+      return CashSummary(
+        netBalance: netBalance,
+        totalSales: totalSales,
+        totalExpenses: totalExpenses,
+        totalOwedToUs: 0, // you can extend later
+        totalWeOwe: 0,
+        unpaidReceivables: 0,
+        unpaidPayables: 0,
+        topExpenseCategory: topCategory,
+        period: 'All Time',
+      );
+    },
+
+    loading: () {
+      throw const AsyncLoading();
+    },
+
+    error: (err, stack) {
+      throw err!;
+    },
+  );
 });
-
-final dashboardRangeProvider =
-    FutureProvider.family<CashSummary, DashboardDateRange>((ref, range) async {
-      final accessState = await ref.watch(authAccessStateProvider.future);
-      if (accessState != AuthAccessState.authenticated) {
-        throw Exception('Complete business setup to access dashboard.');
-      }
-
-      // Keep range summaries in sync with live receivables/payables updates.
-      ref.watch(receivablesProvider);
-      ref.watch(payablesProvider);
-
-      final useCase = ref.watch(getSummaryUseCaseProvider);
-      try {
-        return await useCase.execute(
-          startDate: range.startDate,
-          endDate: range.endDate,
-          period: range.period,
-        );
-      } catch (_) {
-        throw Exception('Unable to load dashboard summary');
-      }
-    });

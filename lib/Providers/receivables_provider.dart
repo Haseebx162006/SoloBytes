@@ -1,11 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
+import 'package:solobytes/Providers/transactions_provider.dart';
 import 'package:solobytes/application/usecases/mark_paid_usecase.dart';
 import 'package:solobytes/application/usecases/track_receivable_usecase.dart';
 import 'package:solobytes/data/repositories/receivable_repository_impl.dart';
 import 'package:solobytes/domain/entities/receivable.dart';
 import 'package:solobytes/domain/entities/user_entity.dart';
+import 'package:solobytes/Providers/person_accounts_provider.dart';
+
 
 class LedgerItemsQuery {
   const LedgerItemsQuery({required this.entryType, this.status});
@@ -37,14 +40,18 @@ final receivableRepositoryProvider = Provider<ReceivableRepositoryImpl>((ref) {
   return ReceivableRepositoryImpl(firestore: firestore);
 });
 
+
 final trackReceivableUseCaseProvider = Provider<TrackReceivableUseCase>((ref) {
   final repository = ref.watch(receivableRepositoryProvider);
-  return TrackReceivableUseCase(repository);
+  final personAccountRepository = ref.watch(personAccountsRepositoryProvider);
+  return TrackReceivableUseCase(repository, personAccountRepository);
 });
 
 final markPaidUseCaseProvider = Provider<MarkPaidUseCase>((ref) {
-  final repository = ref.watch(receivableRepositoryProvider);
-  return MarkPaidUseCase(repository);
+  final receivableRepository = ref.watch(receivableRepositoryProvider);
+  final transactionRepository = ref.watch(transactionRepositoryProvider);
+  final personAccountRepository = ref.watch(personAccountsRepositoryProvider);
+  return MarkPaidUseCase(receivableRepository, transactionRepository, personAccountRepository);
 });
 
 final ledgerItemsProvider =

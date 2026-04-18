@@ -10,8 +10,9 @@ class ReceivableRepositoryImpl {
   CollectionReference<Map<String, dynamic>> _collection(
     LedgerEntryType entryType,
   ) {
-    final collectionName =
-        entryType == LedgerEntryType.receivable ? 'receivables' : 'payables';
+    final collectionName = entryType == LedgerEntryType.receivable
+        ? 'receivables'
+        : 'payables';
     return _firestore.collection(collectionName);
   }
 
@@ -26,9 +27,9 @@ class ReceivableRepositoryImpl {
       return;
     }
 
-    final query = _collection(entryType)
-        .where('userId', isEqualTo: normalizedUserId)
-        .orderBy('createdAt', descending: true);
+    final query = _collection(
+      entryType,
+    ).where('userId', isEqualTo: normalizedUserId);
 
     try {
       await for (final snapshot in query.snapshots()) {
@@ -36,11 +37,16 @@ class ReceivableRepositoryImpl {
             .map((doc) => _fromFirestore(doc.id, doc.data(), entryType))
             .toList(growable: false);
 
+        // Sort in memory to avoid requiring a composite index in Firestore
+        items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
         yield _filterByStatus(items, status);
       }
-    } on FirebaseException {
+    } on FirebaseException catch (e) {
+      print('FirebaseException in watchItems: ${e.message}');
       yield const [];
-    } catch (_) {
+    } catch (e) {
+      print('Exception in watchItems: $e');
       yield const [];
     }
   }
@@ -54,9 +60,12 @@ class ReceivableRepositoryImpl {
 
     final normalizedItem = item.copyWith(
       id: docId,
-      customerName:
-          item.entryType == LedgerEntryType.receivable ? normalizedName : '',
-      vendorName: item.entryType == LedgerEntryType.payable ? normalizedName : '',
+      customerName: item.entryType == LedgerEntryType.receivable
+          ? normalizedName
+          : '',
+      vendorName: item.entryType == LedgerEntryType.payable
+          ? normalizedName
+          : '',
       status: storedStatus,
       invoiceRef: _normalizeOptional(item.invoiceRef),
       clearInvoiceRef: _normalizeOptional(item.invoiceRef) == null,

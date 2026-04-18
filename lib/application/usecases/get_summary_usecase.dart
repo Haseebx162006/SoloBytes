@@ -31,7 +31,7 @@ class GetSummaryUseCase {
       final category =
           (transaction['category'] ?? 'Uncategorized').toString().trim();
 
-      if (type == 'income') {
+      if (type == 'sale' || type == 'income') {
         totalSales += amount;
       } else if (type == 'expense') {
         totalExpenses += amount;

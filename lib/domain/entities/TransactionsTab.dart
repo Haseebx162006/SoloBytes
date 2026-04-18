@@ -78,8 +78,22 @@ class TransactionsTab extends ConsumerWidget {
                           ),
                         ),
                         title: Text(tx.note),
-                        subtitle: Text(
-                          '${tx.date.toLocal().toString().split(' ')[0]} - ${tx.category}',
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${tx.date.toLocal().toString().split(' ')[0]} - ${tx.category}',
+                            ),
+                            if (tx.personName != null && tx.personName!.isNotEmpty)
+                              Text(
+                                'Person: ${tx.personName}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                          ],
                         ),
                         trailing: Text(
                           '${isSale ? '+' : '-'}\$${tx.amount.toStringAsFixed(2)}',
@@ -115,6 +129,7 @@ class TransactionsTab extends ConsumerWidget {
     final descController = TextEditingController();
     final amountController = TextEditingController();
     final categoryController = TextEditingController();
+    final personController = TextEditingController();
     TxType selectedType = TxType.sale;
 
     showDialog(
@@ -181,6 +196,14 @@ class TransactionsTab extends ConsumerWidget {
                         validator: (value) =>
                             value == null || value.isEmpty ? 'Required' : null,
                       ),
+                      if (selectedType == TxType.expense)
+                        TextFormField(
+                          controller: personController,
+                          decoration: const InputDecoration(
+                            labelText: 'Person/Vendor Name',
+                            hintText: 'Who did you pay or owe?',
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -207,6 +230,7 @@ class TransactionsTab extends ConsumerWidget {
                   return;
                 }
 
+                final personName = personController.text.trim();
                 final newTx = TransactionEntity(
                   id: '',
                   userId: user.uid,
@@ -216,6 +240,7 @@ class TransactionsTab extends ConsumerWidget {
                   date: DateTime.now(),
                   note: descController.text,
                   source: 'manual',
+                  personName: personName.isEmpty ? null : personName,
                 );
 
                 Navigator.of(dialogContext).pop();

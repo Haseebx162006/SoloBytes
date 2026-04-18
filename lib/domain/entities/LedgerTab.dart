@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
+import 'package:solobytes/Providers/person_accounts_provider.dart';
 import 'package:solobytes/Providers/receivables_provider.dart';
 import 'package:solobytes/domain/entities/receivable.dart';
 
@@ -12,13 +13,13 @@ class LedgerTab extends ConsumerStatefulWidget {
 }
 
 class _LedgerTabState extends ConsumerState<LedgerTab>
-    with SingleTickerProviderStateMixin {               // FIX 1: removed duplicate "Ticker"
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -35,8 +36,9 @@ class _LedgerTabState extends ConsumerState<LedgerTab>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Receivables (Owed to Us)'),
-            Tab(text: 'Payables (We Owe)'),
+            Tab(text: 'Receivables'),
+            Tab(text: 'Payables'),
+            Tab(text: 'Person Accounts'),
           ],
         ),
       ),
@@ -51,17 +53,20 @@ class _LedgerTabState extends ConsumerState<LedgerTab>
             provider: payablesProvider,
             entryType: LedgerEntryType.payable,
           ),
+          const _PersonAccountsView(),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          _showAddLedgerDialog(
-            context,
-            ref,
-            _tabController.index == 0
-                ? LedgerEntryType.receivable
-                : LedgerEntryType.payable,
-          );
+          if (_tabController.index < 2) {
+            _showAddLedgerDialog(
+              context,
+              ref,
+              _tabController.index == 0
+                  ? LedgerEntryType.receivable
+                  : LedgerEntryType.payable,
+            );
+          }
         },
         child: const Icon(Icons.add),
       ),
@@ -279,11 +284,17 @@ class _LedgerListView extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.of(dialogContext).pop();      // pop BEFORE await
+                Navigator.of(dialogContext).pop();
+                
+                final user = ref.read(authUserProvider);
+                if (user == null) return;
+                
                 final useCase = ref.read(markPaidUseCaseProvider);
                 await useCase.execute(
                   entryType: entryType,
                   itemId: item.id,
+                  userId: user.uid,
+                  item: item,
                 );
               },
               child: const Text('Confirm'),
@@ -291,6 +302,98 @@ class _LedgerListView extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+
+class _PersonAccountsView extends ConsumerWidget {
+  const _PersonAccountsView({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accountsAsync = ref.watch(personAccountsProvider);
+
+    return accountsAsync.when(
+      data: (accounts) {
+        if (accounts.isEmpty) {
+          return const Center(
+            child: Text('No person accounts found.'),
+          );
+        }
+
+        return ListView.builder(
+          itemCount: accounts.length,
+          itemBuilder: (context, index) {
+            final account = accounts[index];
+            final absBalance = account.balance.abs();
+            final isPositive = account.balance > 0;
+            final isZero = account.balance == 0;
+
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor: isZero
+                    ? Colors.grey[300]
+                    : isPositive
+                        ? Colors.green[100]
+                        : Colors.red[100],
+                child: Icon(
+                  isZero
+                      ? Icons.check_circle
+                      : isPositive
+                          ? Icons.arrow_downward
+                          : Icons.arrow_upward,
+                  color: isZero
+                      ? Colors.grey
+                      : isPositive
+                          ? Colors.green
+                          : Colors.red,
+                ),
+              ),
+              title: Text(account.name),
+              subtitle: Text(
+                '${account.transactionCount} transaction${account.transactionCount != 1 ? 's' : ''}\n'
+                'Last: ${account.lastTransactionDate.toLocal().toString().split(' ')[0]}',
+              ),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '\$${absBalance.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: isZero
+                          ? Colors.grey
+                          : isPositive
+                              ? Colors.green
+                              : Colors.red,
+                    ),
+                  ),
+                  Text(
+                    isZero
+                        ? 'SETTLED'
+                        : isPositive
+                            ? 'OWES US'
+                            : 'WE OWE',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isZero
+                          ? Colors.grey
+                          : isPositive
+                              ? Colors.green
+                              : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err')),
     );
   }
 }

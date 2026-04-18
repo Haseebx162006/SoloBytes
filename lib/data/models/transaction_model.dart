@@ -11,6 +11,7 @@ class TransactionModel {
     required this.note,
     required this.date,
     required this.source,
+    this.personName,
   });
 
   final String id;
@@ -21,6 +22,7 @@ class TransactionModel {
   final String note;
   final DateTime date;
   final String source;
+  final String? personName;
 
   factory TransactionModel.fromEntity(TransactionEntity entity) {
     return TransactionModel(
@@ -32,6 +34,7 @@ class TransactionModel {
       note: entity.note,
       date: entity.date,
       source: _normalizeSource(entity.source),
+      personName: entity.personName,
     );
   }
 
@@ -48,6 +51,7 @@ class TransactionModel {
       note: (map['note'] ?? '').toString(),
       date: _dateFromValue(map['date']),
       source: _normalizeSource(map['source']),
+      personName: _normalizeOptional(map['personName']),
     );
   }
 
@@ -61,11 +65,12 @@ class TransactionModel {
       note: note,
       date: date,
       source: source,
+      personName: personName,
     );
   }
 
   Map<String, dynamic> toFirestoreMap() {
-    return {
+    final map = {
       'id': id,
       'userId': userId,
       'type': type.name,
@@ -75,12 +80,18 @@ class TransactionModel {
       'date': Timestamp.fromDate(date),
       'source': source,
     };
+    
+    if (personName != null && personName!.trim().isNotEmpty) {
+      map['personName'] = personName!.trim();
+    }
+    
+    return map;
   }
 
   static TxType _txTypeFromValue(dynamic value) {
     final raw = (value ?? '').toString().toLowerCase();
-    if (raw == TxType.income.name) {
-      return TxType.income;
+    if (raw == 'sale' || raw == 'income') {
+      return TxType.sale;
     }
 
     return TxType.expense;
@@ -121,5 +132,11 @@ class TransactionModel {
     }
 
     return 'manual';
+  }
+
+  static String? _normalizeOptional(dynamic value) {
+    if (value == null) return null;
+    final normalized = value.toString().trim();
+    return normalized.isEmpty ? null : normalized;
   }
 }

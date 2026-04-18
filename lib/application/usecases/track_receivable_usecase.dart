@@ -1,10 +1,12 @@
+import 'package:solobytes/data/repositories/person_account_repository_impl.dart';
 import 'package:solobytes/data/repositories/receivable_repository_impl.dart';
 import 'package:solobytes/domain/entities/receivable.dart';
 
 class TrackReceivableUseCase {
-  const TrackReceivableUseCase(this._repository);
+  const TrackReceivableUseCase(this._repository, this._personAccountRepository);
 
   final ReceivableRepositoryImpl _repository;
+  final PersonAccountRepositoryImpl _personAccountRepository;
 
   Future<ReceivableEntity> execute({
     required LedgerEntryType entryType,
@@ -35,20 +37,39 @@ class TrackReceivableUseCase {
       id: '',
       userId: normalizedUserId,
       entryType: entryType,
-      customerName:
-          entryType == LedgerEntryType.receivable ? normalizedName : '',
+      customerName: entryType == LedgerEntryType.receivable
+          ? normalizedName
+          : '',
       vendorName: entryType == LedgerEntryType.payable ? normalizedName : '',
       amount: amount,
       dueDate: dueDate,
       status: PaymentStatus.unpaid,
-      invoiceRef:
-          normalizedInvoiceRef == null || normalizedInvoiceRef.isEmpty
+      invoiceRef: normalizedInvoiceRef == null || normalizedInvoiceRef.isEmpty
           ? null
           : normalizedInvoiceRef,
       createdAt: now,
       paidAt: null,
     );
 
-    return _repository.saveItem(item);
+    final savedItem = await _repository.saveItem(item);
+
+    try {
+      // Update PersonAccount balance
+      // If receivable, they owe us (+amount)
+      // If payable, we owe them (-amount)
+      final amountChange = entryType == LedgerEntryType.receivable
+          ? amount
+          : -amount;
+
+      await _personAccountRepository.updateOrCreate(
+        userId: normalizedUserId,
+        name: normalizedName,
+        amountChange: amountChange,
+      );
+    } catch (_) {
+      // Continue even if person account update fails
+    }
+
+    return savedItem;
   }
 }

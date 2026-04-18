@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
 import 'package:solobytes/application/usecases/add_transaction_usecase.dart';
 import 'package:solobytes/application/usecases/get_transactions_usecase.dart';
+import 'package:solobytes/data/repositories/person_account_repository_impl.dart';
 import 'package:solobytes/data/repositories/transaction_repository_impl.dart';
 import 'package:solobytes/domain/entities/transaction.dart';
 import 'package:solobytes/domain/entities/user_entity.dart';
@@ -89,9 +90,17 @@ final transactionRepositoryProvider = Provider<TransactionRepositoryImpl>((
   return TransactionRepositoryImpl(firestore: firestore);
 });
 
+final personAccountRepositoryProvider = Provider<PersonAccountRepositoryImpl>((
+  ref,
+) {
+  final firestore = ref.watch(transactionsFirestoreProvider);
+  return PersonAccountRepositoryImpl(firestore: firestore);
+});
+
 final addTransactionUseCaseProvider = Provider<AddTransactionUseCase>((ref) {
-  final repository = ref.watch(transactionRepositoryProvider);
-  return AddTransactionUseCase(repository);
+  final transactionRepository = ref.watch(transactionRepositoryProvider);
+  final personAccountRepository = ref.watch(personAccountRepositoryProvider);
+  return AddTransactionUseCase(transactionRepository, personAccountRepository);
 });
 
 final getTransactionsUseCaseProvider = Provider<GetTransactionsUseCase>((ref) {

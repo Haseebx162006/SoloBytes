@@ -165,7 +165,7 @@ class ExcelParser {
     final typeRaw = _cellToText(_valueAt(row, 1)).trim().toLowerCase();
     final type = _parseTransactionType(typeRaw);
     if (type == null) {
-      throw Exception('Type must be income or expense');
+      throw Exception('Type must be sale or expense');
     }
 
     final category = _cellToText(_valueAt(row, 2)).trim();
@@ -189,6 +189,7 @@ class ExcelParser {
       note: note,
       date: date,
       source: 'excel_import',
+      personName: null,
     );
   }
 
@@ -235,11 +236,11 @@ class ExcelParser {
   }
 
   TxType? _parseTransactionType(String value) {
-    if (value == TxType.income.name) {
-      return TxType.income;
+    if (value == 'sale' || value == 'income') {
+      return TxType.sale;
     }
 
-    if (value == TxType.expense.name) {
+    if (value == 'expense') {
       return TxType.expense;
     }
 

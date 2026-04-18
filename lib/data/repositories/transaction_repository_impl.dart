@@ -33,6 +33,7 @@ class TransactionRepositoryImpl {
         note: transaction.note,
         date: transaction.date,
         source: transaction.source,
+        personName: transaction.personName,
       );
 
       // We use SetOptions(merge: true) to make sure we don't accidentally overwrite other fields
