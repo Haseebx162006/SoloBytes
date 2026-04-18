@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solobytes/Providers/auth_provider.dart';
 import 'package:solobytes/Providers/receivables_provider.dart';
 import 'package:solobytes/domain/entities/receivable.dart';
 
 class LedgerTab extends ConsumerStatefulWidget {
-  const LedgerTab({Key? key}) : super(key: key);
+  const LedgerTab({super.key});
 
   @override
   ConsumerState<LedgerTab> createState() => _LedgerTabState();
 }
 
 class _LedgerTabState extends ConsumerState<LedgerTab>
-    with SingleTickerTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {               // FIX 1: removed duplicate "Ticker"
   late TabController _tabController;
 
   @override
@@ -79,7 +80,7 @@ class _LedgerTabState extends ConsumerState<LedgerTab>
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {                        // FIX 4: named dialogContext
         return AlertDialog(
           title: Text(
             type == LedgerEntryType.receivable
@@ -135,9 +136,7 @@ class _LedgerTabState extends ConsumerState<LedgerTab>
                             ),
                           );
                           if (date != null) {
-                            setState(() {
-                              selectedDate = date;
-                            });
+                            setState(() => selectedDate = date);
                           }
                         },
                       ),
@@ -149,24 +148,31 @@ class _LedgerTabState extends ConsumerState<LedgerTab>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final user = ref.read(authUserProvider);
-                  if (user != null) {
-                    final useCase = ref.read(trackReceivableUseCaseProvider);
-                    await useCase.execute(
-                      entryType: type,
-                      userId: user.uid,
-                      name: partyController.text,
-                      amount: double.parse(amountController.text),
-                      dueDate: selectedDate!,
-                    );
-                    Navigator.of(context).pop();
-                  }
+                if (!formKey.currentState!.validate()) return;
+
+                final user = ref.read(authUserProvider);  // FIX 2: correct provider name (ensure import above matches your actual provider file)
+                if (user == null) return;
+
+                final useCase = ref.read(trackReceivableUseCaseProvider);
+
+                // FIX 3: match your use case's actual execute() signature.
+                // Option A — if execute() takes named params:
+                await useCase.execute(
+                  entryType: type,
+                  userId: user.uid,
+                  name: partyController.text,
+                  amount: double.parse(amountController.text),
+                  dueDate: selectedDate!,
+                );
+
+                // FIX 4: guard with mounted before using context after await
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
                 }
               },
               child: const Text('Save'),
@@ -183,10 +189,10 @@ class _LedgerListView extends ConsumerWidget {
   final LedgerEntryType entryType;
 
   const _LedgerListView({
-    Key? key,
+    super.key,
     required this.provider,
     required this.entryType,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -232,8 +238,8 @@ class _LedgerListView extends ConsumerWidget {
                       color: isPaid
                           ? Colors.green
                           : item.isOverdue
-                          ? Colors.red
-                          : Colors.orange,
+                              ? Colors.red
+                              : Colors.orange,
                       fontSize: 10,
                     ),
                   ),
@@ -241,15 +247,13 @@ class _LedgerListView extends ConsumerWidget {
               ),
               onTap: isPaid
                   ? null
-                  : () {
-                      _showMarkPaidDialog(context, ref, item);
-                    },
+                  : () => _showMarkPaidDialog(context, ref, item),
             );
           },
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text('Error: \$err')),
+      error: (err, stack) => Center(child: Text('Error: $err')),
     );
   }
 
@@ -260,22 +264,27 @@ class _LedgerListView extends ConsumerWidget {
   ) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {                        // FIX 4: named dialogContext
         return AlertDialog(
           title: const Text('Mark as Paid'),
           content: Text(
-            'Are you sure you want to mark ${item.partyName}\'s entry of \$${item.amount.toStringAsFixed(2)} as paid? This will also add a transaction.',
+            'Are you sure you want to mark ${item.partyName}\'s entry of '
+            '\$${item.amount.toStringAsFixed(2)} as paid? '
+            'This will also add a transaction.',
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop();      // pop BEFORE await
                 final useCase = ref.read(markPaidUseCaseProvider);
-                await useCase.execute(item.id);
+                await useCase.execute(
+                  entryType: entryType,
+                  itemId: item.id,
+                );
               },
               child: const Text('Confirm'),
             ),

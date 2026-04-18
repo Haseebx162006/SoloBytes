@@ -1,4 +1,4 @@
-enum TxType { income, expense }
+enum TxType { income, expense, sale }
 
 class TransactionEntity {
   const TransactionEntity({
@@ -20,4 +20,26 @@ class TransactionEntity {
   final String note;
   final DateTime date;
   final String source;
+
+  TransactionEntity copyWith({
+    String? id,
+    String? userId,
+    TxType? type,
+    String? category,
+    double? amount,
+    String? note,
+    DateTime? date,
+    String? source,
+  }) {
+    return TransactionEntity(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      type: type ?? this.type,
+      category: category ?? this.category,
+      amount: amount ?? this.amount,
+      note: note ?? this.note,
+      date: date ?? this.date,
+      source: source ?? this.source,
+    );
+  }
 }

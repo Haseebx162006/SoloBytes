@@ -66,6 +66,7 @@ class TransactionModel {
 
   Map<String, dynamic> toFirestoreMap() {
     return {
+      'id': id,
       'userId': userId,
       'type': type.name,
       'category': category,

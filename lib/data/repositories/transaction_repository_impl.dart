@@ -8,20 +8,25 @@ class TransactionRepositoryImpl {
 
   final FirebaseFirestore _firestore;
 
-  CollectionReference<Map<String, dynamic>> get _transactionsCollection {
-    return _firestore.collection('transactions');
-  }
-
-  Future<TransactionEntity> addTransaction(TransactionEntity transaction) async {
+  Future<TransactionEntity> addTransaction(
+    TransactionEntity transaction,
+  ) async {
     try {
-      final transactionId =
-          transaction.id.trim().isEmpty
-              ? _transactionsCollection.doc().id
-              : transaction.id.trim();
+      if (transaction.userId.trim().isEmpty) {
+        throw Exception('User ID is required to add an transaction');
+      }
+
+      final docRef = _firestore
+          .collection('users')
+          .doc(transaction.userId.trim())
+          .collection('transactions')
+          .doc(transaction.id.trim().isEmpty ? null : transaction.id.trim());
+
+      final transactionId = docRef.id;
 
       final model = TransactionModel(
         id: transactionId,
-        userId: transaction.userId,
+        userId: transaction.userId.trim(),
         type: transaction.type,
         category: transaction.category,
         amount: transaction.amount,
@@ -30,7 +35,8 @@ class TransactionRepositoryImpl {
         source: transaction.source,
       );
 
-      await _transactionsCollection.doc(transactionId).set(model.toFirestoreMap());
+      // We use SetOptions(merge: true) to make sure we don't accidentally overwrite other fields
+      await docRef.set(model.toFirestoreMap(), SetOptions(merge: true));
       return model.toEntity();
     } on FirebaseException catch (error) {
       final message = error.message ?? 'Unable to add transaction';
@@ -52,10 +58,10 @@ class TransactionRepositoryImpl {
     }
 
     try {
-      Query<Map<String, dynamic>> query = _transactionsCollection.where(
-        'userId',
-        isEqualTo: userId.trim(),
-      );
+      Query<Map<String, dynamic>> query = _firestore
+          .collection('users')
+          .doc(userId.trim())
+          .collection('transactions');
 
       if (startDate != null) {
         query = query.where(
@@ -85,8 +91,10 @@ class TransactionRepositoryImpl {
 
       return snapshot.docs
           .map(
-            (doc) =>
-                TransactionModel.fromFirestoreMap(doc.id, doc.data()).toEntity(),
+            (doc) => TransactionModel.fromFirestoreMap(
+              doc.id,
+              doc.data(),
+            ).toEntity(),
           )
           .toList();
     } on FirebaseException {

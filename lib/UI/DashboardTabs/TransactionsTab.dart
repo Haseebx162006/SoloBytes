@@ -1,10 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/transactions_provider.dart';
 import 'package:solobytes/domain/entities/transaction.dart';
 
 class TransactionsTab extends ConsumerWidget {
-  const TransactionsTab({Key? key}) : super(key: key);
+  const TransactionsTab({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -13,6 +14,7 @@ class TransactionsTab extends ConsumerWidget {
     return Scaffold(
       body: Column(
         children: [
+          // 🔹 FILTER SECTION
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -46,12 +48,15 @@ class TransactionsTab extends ConsumerWidget {
               ],
             ),
           ),
+
+          // 🔹 TRANSACTIONS LIST
           Expanded(
             child: transactionsAsync.when(
               data: (transactions) {
                 if (transactions.isEmpty) {
                   return const Center(child: Text('No transactions found.'));
                 }
+
                 return RefreshIndicator(
                   onRefresh: () async {
                     await ref.read(transactionsProvider.notifier).refresh();
@@ -61,6 +66,7 @@ class TransactionsTab extends ConsumerWidget {
                     itemBuilder: (context, index) {
                       final tx = transactions[index];
                       final isSale = tx.type == TxType.sale;
+
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundColor: isSale
@@ -71,7 +77,7 @@ class TransactionsTab extends ConsumerWidget {
                             color: isSale ? Colors.green : Colors.red,
                           ),
                         ),
-                        title: Text(tx.description),
+                        title: Text(tx.note),
                         subtitle: Text(
                           '${tx.date.toLocal().toString().split(' ')[0]} - ${tx.category}',
                         ),
@@ -89,20 +95,21 @@ class TransactionsTab extends ConsumerWidget {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Error: \$err')),
+              error: (err, stack) => Center(child: Text('Error: $err')),
             ),
           ),
         ],
       ),
+
+      // 🔹 ADD BUTTON
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showAddTransactionDialog(context, ref);
-        },
+        onPressed: () => _showAddTransactionDialog(context, ref),
         child: const Icon(Icons.add),
       ),
     );
   }
 
+  // 🔹 ADD TRANSACTION DIALOG
   void _showAddTransactionDialog(BuildContext context, WidgetRef ref) {
     final formKey = GlobalKey<FormState>();
     final descController = TextEditingController();
@@ -112,7 +119,7 @@ class TransactionsTab extends ConsumerWidget {
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Add Transaction'),
           content: StatefulBuilder(
@@ -157,7 +164,9 @@ class TransactionsTab extends ConsumerWidget {
                           decimal: true,
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) return 'Required';
+                          if (value == null || value.isEmpty) {
+                            return 'Required';
+                          }
                           if (double.tryParse(value) == null) {
                             return 'Invalid number';
                           }
@@ -178,27 +187,40 @@ class TransactionsTab extends ConsumerWidget {
               );
             },
           ),
+
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Cancel'),
             ),
+
             ElevatedButton(
               onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final newTx = TransactionEntity(
-                    id: DateTime.now().toIso8601String(),
-                    userId:
-                        '', // Provider will fill user id internally based on logic or add case needs it. Wait, let's check add function.
-                    amount: double.parse(amountController.text),
-                    type: selectedType,
-                    category: categoryController.text,
-                    date: DateTime.now(),
-                    description: descController.text,
+                if (!formKey.currentState!.validate()) return;
+
+                final user = FirebaseAuth.instance.currentUser;
+
+                if (user == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('User not logged in')),
                   );
-                  Navigator.of(context).pop();
-                  await ref.read(transactionsProvider.notifier).add(newTx);
+                  return;
                 }
+
+                final newTx = TransactionEntity(
+                  id: '',
+                  userId: user.uid,
+                  amount: double.parse(amountController.text),
+                  type: selectedType,
+                  category: categoryController.text,
+                  date: DateTime.now(),
+                  note: descController.text,
+                  source: 'manual',
+                );
+
+                Navigator.of(dialogContext).pop();
+
+                await ref.read(transactionsProvider.notifier).add(newTx);
               },
               child: const Text('Save'),
             ),
