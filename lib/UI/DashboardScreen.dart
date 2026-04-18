@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
 import 'package:solobytes/UI/DashboardTabs/ImportTab.dart';
+import 'package:solobytes/UI/DashboardTabs/InsightsTab.dart';
 
 import 'package:solobytes/UI/DashboardTabs/OverviewTab.dart';
 import 'package:solobytes/domain/entities/Ledgertab.dart';
@@ -22,6 +23,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     const TransactionsTab(),
     const LedgerTab(),
     const ImportTab(),
+    const InsightsTab(),
   ];
 
   @override
@@ -42,6 +44,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: _tabs[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
+        selectedItemColor: Colors.deepPurple,
+        unselectedItemColor: Colors.grey,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
@@ -64,6 +68,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.upload_file),
             label: 'Import',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.auto_awesome),
+            label: 'Insights',
           ),
         ],
       ),

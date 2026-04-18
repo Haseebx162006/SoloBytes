@@ -21,6 +21,15 @@ class ExcelParser {
     'note',
   ];
 
+  static const List<String> _transactionHeadersWithProduct = [
+    'date',
+    'type',
+    'category',
+    'amount',
+    'note',
+    'productname', // New optional header
+  ];
+
   static const List<String> _receivableHeaders = [
     'customername',
     'amount',
@@ -109,7 +118,8 @@ class ExcelParser {
   }
 
   _ExcelSchema? _resolveSchema(List<String> headers) {
-    if (_matchesHeaders(headers, _transactionHeaders)) {
+    if (_matchesHeaders(headers, _transactionHeaders) ||
+        _matchesHeaders(headers, _transactionHeadersWithProduct)) {
       return _ExcelSchema.transaction;
     }
 
@@ -179,6 +189,16 @@ class ExcelParser {
     }
 
     final note = _cellToText(_valueAt(row, 4)).trim();
+    String? productName;
+
+    if (row.length > 5) {
+      productName = _cellToText(_valueAt(row, 5)).trim();
+      if (productName.isEmpty) productName = null;
+    }
+
+    if (type == TxType.sale && (productName == null || productName.isEmpty)) {
+      productName = 'Imported Sale';
+    }
 
     return TransactionEntity(
       id: '',
@@ -190,6 +210,7 @@ class ExcelParser {
       date: date,
       source: 'excel_import',
       personName: null,
+      productName: productName,
     );
   }
 

@@ -24,18 +24,26 @@ class AddTransactionUseCase {
       throw Exception('Category is required');
     }
 
+    if (transaction.type == TxType.sale &&
+        (transaction.productName == null ||
+            transaction.productName!.trim().isEmpty)) {
+      throw Exception('Product Name is required for sales transactions.');
+    }
+
     final source = transaction.source.trim();
-    if (source != 'manual' && 
-        source != 'excel_import' && 
+    if (source != 'manual' &&
+        source != 'excel_import' &&
         source != 'ledger_payment') {
       throw Exception('Invalid source');
     }
 
     // Add the transaction
-    final savedTransaction = await _transactionRepository.addTransaction(transaction);
+    final savedTransaction = await _transactionRepository.addTransaction(
+      transaction,
+    );
 
     // Update person account if personName is provided and it's an expense
-    if (transaction.personName != null && 
+    if (transaction.personName != null &&
         transaction.personName!.trim().isNotEmpty &&
         transaction.type == TxType.expense) {
       try {

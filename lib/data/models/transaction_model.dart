@@ -12,6 +12,7 @@ class TransactionModel {
     required this.date,
     required this.source,
     this.personName,
+    this.productName,
   });
 
   final String id;
@@ -23,6 +24,7 @@ class TransactionModel {
   final DateTime date;
   final String source;
   final String? personName;
+  final String? productName;
 
   factory TransactionModel.fromEntity(TransactionEntity entity) {
     return TransactionModel(
@@ -35,6 +37,7 @@ class TransactionModel {
       date: entity.date,
       source: _normalizeSource(entity.source),
       personName: entity.personName,
+      productName: entity.productName,
     );
   }
 
@@ -52,6 +55,7 @@ class TransactionModel {
       date: _dateFromValue(map['date']),
       source: _normalizeSource(map['source']),
       personName: _normalizeOptional(map['personName']),
+      productName: _normalizeOptional(map['productName']),
     );
   }
 
@@ -66,6 +70,7 @@ class TransactionModel {
       date: date,
       source: source,
       personName: personName,
+      productName: productName,
     );
   }
 
@@ -80,11 +85,17 @@ class TransactionModel {
       'date': Timestamp.fromDate(date),
       'source': source,
     };
-    
+
     if (personName != null && personName!.trim().isNotEmpty) {
       map['personName'] = personName!.trim();
     }
-    
+
+    if (type == TxType.sale &&
+        productName != null &&
+        productName!.trim().isNotEmpty) {
+      map['productName'] = productName!.trim();
+    }
+
     return map;
   }
 

@@ -54,6 +54,9 @@ class MarkPaidUseCase {
       date: paidAt,
       source: 'ledger_payment',
       personName: item.partyName,
+      productName: entryType == LedgerEntryType.receivable
+          ? 'Ledger Payment'
+          : null,
     );
 
     await _transactionRepository.addTransaction(transaction);

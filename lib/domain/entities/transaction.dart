@@ -11,6 +11,7 @@ class TransactionEntity {
     required this.date,
     required this.source,
     this.personName,
+    this.productName,
   });
 
   final String id;
@@ -22,6 +23,7 @@ class TransactionEntity {
   final DateTime date;
   final String source;
   final String? personName;
+  final String? productName;
 
   bool get isSale => type == TxType.sale;
   bool get isExpense => type == TxType.expense;
@@ -37,6 +39,8 @@ class TransactionEntity {
     String? source,
     String? personName,
     bool clearPersonName = false,
+    String? productName,
+    bool clearProductName = false,
   }) {
     return TransactionEntity(
       id: id ?? this.id,
@@ -48,6 +52,7 @@ class TransactionEntity {
       date: date ?? this.date,
       source: source ?? this.source,
       personName: clearPersonName ? null : (personName ?? this.personName),
+      productName: clearProductName ? null : (productName ?? this.productName),
     );
   }
 }
