@@ -41,7 +41,7 @@ class GetSummaryUseCase {
     }
 
     for (final receivable in rawData.receivables) {
-      final isPaid = _toBool(receivable['isPaid']);
+      final isPaid = _isPaidEntry(receivable);
       if (!isPaid) {
         unpaidReceivables += 1;
         totalOwedToUs += _toDouble(receivable['amount']);
@@ -49,7 +49,7 @@ class GetSummaryUseCase {
     }
 
     for (final payable in rawData.payables) {
-      final isPaid = _toBool(payable['isPaid']);
+      final isPaid = _isPaidEntry(payable);
       if (!isPaid) {
         unpaidPayables += 1;
         totalWeOwe += _toDouble(payable['amount']);
@@ -106,5 +106,18 @@ class GetSummaryUseCase {
     }
 
     return false;
+  }
+
+  bool _isPaidEntry(Map<String, dynamic> entry) {
+    final status = (entry['status'] ?? '').toString().trim().toLowerCase();
+    if (status == 'paid') {
+      return true;
+    }
+
+    if (status == 'unpaid' || status == 'overdue') {
+      return false;
+    }
+
+    return _toBool(entry['isPaid']);
   }
 }

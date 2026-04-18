@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
+import 'package:solobytes/Providers/receivables_provider.dart';
 import 'package:solobytes/application/usecases/get_summary_usecase.dart';
 import 'package:solobytes/data/repositories/dashboard_repository_impl.dart';
 import 'package:solobytes/domain/entities/cash_summary.dart';
@@ -33,6 +34,10 @@ final dashboardProvider = FutureProvider<CashSummary>((ref) async {
     throw Exception('Complete business setup to access dashboard.');
   }
 
+  // Recalculate summary whenever receivables/payables change.
+  ref.watch(receivablesProvider);
+  ref.watch(payablesProvider);
+
   final useCase = ref.watch(getSummaryUseCaseProvider);
   try {
     return await useCase.execute();
@@ -47,6 +52,10 @@ final dashboardRangeProvider =
       if (accessState != AuthAccessState.authenticated) {
         throw Exception('Complete business setup to access dashboard.');
       }
+
+      // Keep range summaries in sync with live receivables/payables updates.
+      ref.watch(receivablesProvider);
+      ref.watch(payablesProvider);
 
       final useCase = ref.watch(getSummaryUseCaseProvider);
       try {

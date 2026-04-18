@@ -30,7 +30,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       final googleUser = await _googleSignIn.authenticate();
 
-      final googleAuth = await googleUser.authentication;
+      final googleAuth = googleUser.authentication;
       if (googleAuth.idToken == null) {
         throw const AuthException('Google sign-in failed. Please try again.');
       }
