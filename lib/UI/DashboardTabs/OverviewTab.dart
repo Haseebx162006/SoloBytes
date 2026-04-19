@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:solobytes/Providers/dashboard_provider.dart';
+import 'package:solobytes/Providers/receivables_provider.dart';
 import 'package:solobytes/Providers/transactions_provider.dart';
 import 'package:solobytes/Widgets/custom_card.dart';
+import 'package:solobytes/domain/entities/receivable.dart';
 import 'package:solobytes/domain/entities/transaction.dart';
 import 'package:solobytes/theme/app_colors.dart';
 import 'package:solobytes/theme/app_text_styles.dart';
@@ -34,6 +36,16 @@ class OverviewTab extends ConsumerWidget {
           onRefresh: () async {
             ref.invalidate(dashboardProvider);
             ref.invalidate(transactionsProvider);
+            ref.invalidate(
+              ledgerItemsProvider(
+                const LedgerItemsQuery(entryType: LedgerEntryType.receivable),
+              ),
+            );
+            ref.invalidate(
+              ledgerItemsProvider(
+                const LedgerItemsQuery(entryType: LedgerEntryType.payable),
+              ),
+            );
           },
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -149,9 +161,7 @@ class OverviewTab extends ConsumerWidget {
               const SizedBox(width: 10),
               Text(
                 'Net Balance',
-                style: AppTextStyles.subtitle.copyWith(
-                  color: Colors.white70,
-                ),
+                style: AppTextStyles.subtitle.copyWith(color: Colors.white70),
               ),
             ],
           ),
@@ -265,7 +275,9 @@ class OverviewTab extends ConsumerWidget {
                         if (sales > 0)
                           PieChartSectionData(
                             value: sales,
-                            title: total > 0 ? '${(sales / total * 100).toStringAsFixed(1)}%' : '',
+                            title: total > 0
+                                ? '${(sales / total * 100).toStringAsFixed(1)}%'
+                                : '',
                             titleStyle: AppTextStyles.caption.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
@@ -276,7 +288,9 @@ class OverviewTab extends ConsumerWidget {
                         if (expenses > 0)
                           PieChartSectionData(
                             value: expenses,
-                            title: total > 0 ? '${(expenses / total * 100).toStringAsFixed(1)}%' : '',
+                            title: total > 0
+                                ? '${(expenses / total * 100).toStringAsFixed(1)}%'
+                                : '',
                             titleStyle: AppTextStyles.caption.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
@@ -323,8 +337,18 @@ class OverviewTab extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-              Text(_formatAmount(amount), style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                title,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                _formatAmount(amount),
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -372,11 +396,8 @@ class OverviewTab extends ConsumerWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: recent.length,
-            separatorBuilder: (_, __) => const Divider(
-              height: 1,
-              indent: 56,
-              color: AppColors.divider,
-            ),
+            separatorBuilder: (_, __) =>
+                const Divider(height: 1, indent: 56, color: AppColors.divider),
             itemBuilder: (context, index) {
               final tx = recent[index];
               final isIncome = tx.type == TxType.sale;
@@ -469,10 +490,7 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(title, style: AppTextStyles.caption),
           const SizedBox(height: 4),
-          Text(
-            _format(amount),
-            style: AppTextStyles.amount,
-          ),
+          Text(_format(amount), style: AppTextStyles.amount),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
             Text(subtitle!, style: AppTextStyles.caption),

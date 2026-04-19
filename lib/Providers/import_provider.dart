@@ -1,11 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/application/usecases/parse_excel_usecase.dart';
 import 'package:solobytes/data/excel_parser.dart';
 import 'package:solobytes/data/repositories/import_repository_impl.dart';
+import 'package:solobytes/data/services/cloudinary_upload_service.dart';
 import 'package:solobytes/domain/entities/import_result.dart';
 
 class ImportState {
@@ -53,8 +53,10 @@ final importFirestoreProvider = Provider<FirebaseFirestore>((ref) {
   return FirebaseFirestore.instance;
 });
 
-final importStorageProvider = Provider<FirebaseStorage>((ref) {
-  return FirebaseStorage.instance;
+final cloudinaryUploadServiceProvider = Provider<CloudinaryUploadService>((
+  ref,
+) {
+  return CloudinaryUploadService();
 });
 
 final excelParserProvider = Provider<ExcelParser>((ref) {
@@ -68,8 +70,11 @@ final parseExcelUseCaseProvider = Provider<ParseExcelUseCase>((ref) {
 
 final importRepositoryProvider = Provider<ImportRepositoryImpl>((ref) {
   final firestore = ref.watch(importFirestoreProvider);
-  final storage = ref.watch(importStorageProvider);
-  return ImportRepositoryImpl(firestore: firestore, storage: storage);
+  final cloudinaryUploadService = ref.watch(cloudinaryUploadServiceProvider);
+  return ImportRepositoryImpl(
+    firestore: firestore,
+    cloudinaryUploadService: cloudinaryUploadService,
+  );
 });
 
 final importProvider = NotifierProvider<ImportNotifier, ImportState>(

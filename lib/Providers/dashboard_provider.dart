@@ -41,14 +41,32 @@ final dashboardProvider = FutureProvider<CashSummary>((ref) async {
     throw Exception('User not authenticated');
   }
 
-  // Automatically refresh when transactions change
-  ref.watch(transactionsProvider);
+  final transactionsAsync = ref.watch(transactionsProvider);
+  final receivablesAsync = ref.watch(
+    ledgerItemsProvider(
+      const LedgerItemsQuery(entryType: LedgerEntryType.receivable),
+    ),
+  );
+  final payablesAsync = ref.watch(
+    ledgerItemsProvider(
+      const LedgerItemsQuery(entryType: LedgerEntryType.payable),
+    ),
+  );
 
-  final txUseCase = ref.watch(getTransactionsUseCaseProvider);
-  final transactions = await txUseCase.execute(userId: user.uid);
-
-  final receivables = ref.watch(receivablesProvider).value ?? [];
-  final payables = ref.watch(payablesProvider).value ?? [];
+  final transactions = await _resolveTransactions(
+    ref: ref,
+    asyncValue: transactionsAsync,
+  );
+  final receivables = await _resolveLedgerItems(
+    ref: ref,
+    asyncValue: receivablesAsync,
+    query: const LedgerItemsQuery(entryType: LedgerEntryType.receivable),
+  );
+  final payables = await _resolveLedgerItems(
+    ref: ref,
+    asyncValue: payablesAsync,
+    query: const LedgerItemsQuery(entryType: LedgerEntryType.payable),
+  );
 
   double totalSales = 0;
   double totalExpenses = 0;
@@ -116,3 +134,38 @@ final dashboardProvider = FutureProvider<CashSummary>((ref) async {
     period: 'All Time',
   );
 });
+
+Future<List<TransactionEntity>> _resolveTransactions({
+  required Ref ref,
+  required AsyncValue<List<TransactionEntity>> asyncValue,
+}) async {
+  return asyncValue.when(
+    data: (items) => items,
+    loading: () async {
+      try {
+        return await ref.watch(transactionsProvider.future);
+      } catch (_) {
+        return const [];
+      }
+    },
+    error: (_, __) => const [],
+  );
+}
+
+Future<List<ReceivableEntity>> _resolveLedgerItems({
+  required Ref ref,
+  required AsyncValue<List<ReceivableEntity>> asyncValue,
+  required LedgerItemsQuery query,
+}) async {
+  return asyncValue.when(
+    data: (items) => items,
+    loading: () async {
+      try {
+        return await ref.watch(ledgerItemsProvider(query).future);
+      } catch (_) {
+        return const [];
+      }
+    },
+    error: (_, __) => const [],
+  );
+}

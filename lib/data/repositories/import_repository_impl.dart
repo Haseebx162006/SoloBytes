@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:solobytes/data/services/cloudinary_upload_service.dart';
 import 'package:solobytes/domain/entities/import_result.dart';
 import 'package:solobytes/domain/entities/receivable.dart';
 import 'package:solobytes/domain/entities/transaction.dart';
@@ -21,12 +21,12 @@ class ImportCommitResult {
 class ImportRepositoryImpl {
   ImportRepositoryImpl({
     required FirebaseFirestore firestore,
-    required FirebaseStorage storage,
+    required CloudinaryUploadService cloudinaryUploadService,
   }) : _firestore = firestore,
-       _storage = storage;
+       _cloudinaryUploadService = cloudinaryUploadService;
 
   final FirebaseFirestore _firestore;
-  final FirebaseStorage _storage;
+  final CloudinaryUploadService _cloudinaryUploadService;
 
   static const int _maxBatchOperations = 500;
 
@@ -71,20 +71,20 @@ class ImportRepositoryImpl {
     }
 
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final path = 'imports/$userId/$timestamp.xlsx';
 
     try {
-      final reference = _storage.ref().child(path);
-      await reference.putData(
-        fileBytes,
-        SettableMetadata(
-          contentType:
-              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ),
+      return await _cloudinaryUploadService.uploadExcelBackup(
+        userId: userId,
+        fileBytes: fileBytes,
+        timestamp: timestamp,
       );
-      return path;
-    } on FirebaseException catch (error) {
-      throw Exception(error.message ?? 'Unable to upload Excel backup file');
+    } on Exception catch (error) {
+      final message = error.toString().replaceFirst('Exception: ', '').trim();
+      if (message.isNotEmpty) {
+        throw Exception(message);
+      }
+
+      throw Exception('Unable to upload Excel backup file');
     } catch (_) {
       throw Exception('Unable to upload Excel backup file');
     }
