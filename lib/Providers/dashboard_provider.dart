@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solobytes/Providers/auth_provider.dart';
 import 'package:solobytes/Providers/transactions_provider.dart';
 import 'package:solobytes/domain/entities/transaction.dart';
 import 'package:solobytes/Providers/receivables_provider.dart';
@@ -29,25 +30,25 @@ class CashSummary {
 }
 
 final dashboardProvider = FutureProvider<CashSummary>((ref) async {
-  final transactionsAsync = ref.watch(transactionsProvider);
-  final receivablesValues = ref.watch(receivablesProvider);
-  final payablesValues = ref.watch(payablesProvider);
+  final authState = ref.watch(authStateChangesProvider);
+  final user = authState.when(
+    data: (u) => u,
+    loading: () => null,
+    error: (_, __) => null,
+  );
 
-  if (transactionsAsync is AsyncLoading ||
-      receivablesValues is AsyncLoading ||
-      payablesValues is AsyncLoading) {
-    throw const AsyncLoading();
+  if (user == null || user.uid.isEmpty) {
+    throw Exception('User not authenticated');
   }
 
-  if (transactionsAsync is AsyncError ||
-      receivablesValues is AsyncError ||
-      payablesValues is AsyncError) {
-    throw Exception('Error loading dashboard data');
-  }
+  // Automatically refresh when transactions change
+  ref.watch(transactionsProvider);
 
-  final transactions = transactionsAsync.value ?? [];
-  final receivables = receivablesValues.value ?? [];
-  final payables = payablesValues.value ?? [];
+  final txUseCase = ref.watch(getTransactionsUseCaseProvider);
+  final transactions = await txUseCase.execute(userId: user.uid);
+
+  final receivables = ref.watch(receivablesProvider).value ?? [];
+  final payables = ref.watch(payablesProvider).value ?? [];
 
   double totalSales = 0;
   double totalExpenses = 0;
