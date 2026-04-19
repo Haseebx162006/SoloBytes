@@ -9,7 +9,6 @@ import 'package:solobytes/domain/entities/receivable.dart';
 import 'package:solobytes/domain/entities/user_entity.dart';
 import 'package:solobytes/Providers/person_accounts_provider.dart';
 
-
 class LedgerItemsQuery {
   const LedgerItemsQuery({required this.entryType, this.status});
 
@@ -40,18 +39,26 @@ final receivableRepositoryProvider = Provider<ReceivableRepositoryImpl>((ref) {
   return ReceivableRepositoryImpl(firestore: firestore);
 });
 
-
 final trackReceivableUseCaseProvider = Provider<TrackReceivableUseCase>((ref) {
   final repository = ref.watch(receivableRepositoryProvider);
   final personAccountRepository = ref.watch(personAccountsRepositoryProvider);
-  return TrackReceivableUseCase(repository, personAccountRepository);
+  final transactionRepository = ref.watch(transactionRepositoryProvider);
+  return TrackReceivableUseCase(
+    repository,
+    personAccountRepository,
+    transactionRepository,
+  );
 });
 
 final markPaidUseCaseProvider = Provider<MarkPaidUseCase>((ref) {
   final receivableRepository = ref.watch(receivableRepositoryProvider);
   final transactionRepository = ref.watch(transactionRepositoryProvider);
   final personAccountRepository = ref.watch(personAccountsRepositoryProvider);
-  return MarkPaidUseCase(receivableRepository, transactionRepository, personAccountRepository);
+  return MarkPaidUseCase(
+    receivableRepository,
+    transactionRepository,
+    personAccountRepository,
+  );
 });
 
 final ledgerItemsProvider =
@@ -78,52 +85,52 @@ final ledgerItemsProvider =
       );
     });
 
-final receivablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>(
-  (ref) {
-    return ref.watch(
-      ledgerItemsProvider(
-        const LedgerItemsQuery(entryType: LedgerEntryType.receivable),
+final receivablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>((ref) {
+  return ref.watch(
+    ledgerItemsProvider(
+      const LedgerItemsQuery(entryType: LedgerEntryType.receivable),
+    ),
+  );
+});
+
+final unpaidReceivablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>((
+  ref,
+) {
+  return ref.watch(
+    ledgerItemsProvider(
+      const LedgerItemsQuery(
+        entryType: LedgerEntryType.receivable,
+        status: PaymentStatus.unpaid,
       ),
-    );
-  },
-);
+    ),
+  );
+});
 
-final unpaidReceivablesProvider =
-    Provider<AsyncValue<List<ReceivableEntity>>>((ref) {
-      return ref.watch(
-        ledgerItemsProvider(
-          const LedgerItemsQuery(
-            entryType: LedgerEntryType.receivable,
-            status: PaymentStatus.unpaid,
-          ),
-        ),
-      );
-    });
+final paidReceivablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>((
+  ref,
+) {
+  return ref.watch(
+    ledgerItemsProvider(
+      const LedgerItemsQuery(
+        entryType: LedgerEntryType.receivable,
+        status: PaymentStatus.paid,
+      ),
+    ),
+  );
+});
 
-final paidReceivablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>(
+final overdueReceivablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>(
   (ref) {
     return ref.watch(
       ledgerItemsProvider(
         const LedgerItemsQuery(
           entryType: LedgerEntryType.receivable,
-          status: PaymentStatus.paid,
+          status: PaymentStatus.overdue,
         ),
       ),
     );
   },
 );
-
-final overdueReceivablesProvider =
-    Provider<AsyncValue<List<ReceivableEntity>>>((ref) {
-      return ref.watch(
-        ledgerItemsProvider(
-          const LedgerItemsQuery(
-            entryType: LedgerEntryType.receivable,
-            status: PaymentStatus.overdue,
-          ),
-        ),
-      );
-    });
 
 final payablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>((ref) {
   return ref.watch(
@@ -133,44 +140,44 @@ final payablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>((ref) {
   );
 });
 
-final unpaidPayablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>(
-  (ref) {
-    return ref.watch(
-      ledgerItemsProvider(
-        const LedgerItemsQuery(
-          entryType: LedgerEntryType.payable,
-          status: PaymentStatus.unpaid,
-        ),
+final unpaidPayablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>((
+  ref,
+) {
+  return ref.watch(
+    ledgerItemsProvider(
+      const LedgerItemsQuery(
+        entryType: LedgerEntryType.payable,
+        status: PaymentStatus.unpaid,
       ),
-    );
-  },
-);
+    ),
+  );
+});
 
-final paidPayablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>(
-  (ref) {
-    return ref.watch(
-      ledgerItemsProvider(
-        const LedgerItemsQuery(
-          entryType: LedgerEntryType.payable,
-          status: PaymentStatus.paid,
-        ),
+final paidPayablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>((
+  ref,
+) {
+  return ref.watch(
+    ledgerItemsProvider(
+      const LedgerItemsQuery(
+        entryType: LedgerEntryType.payable,
+        status: PaymentStatus.paid,
       ),
-    );
-  },
-);
+    ),
+  );
+});
 
-final overduePayablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>(
-  (ref) {
-    return ref.watch(
-      ledgerItemsProvider(
-        const LedgerItemsQuery(
-          entryType: LedgerEntryType.payable,
-          status: PaymentStatus.overdue,
-        ),
+final overduePayablesProvider = Provider<AsyncValue<List<ReceivableEntity>>>((
+  ref,
+) {
+  return ref.watch(
+    ledgerItemsProvider(
+      const LedgerItemsQuery(
+        entryType: LedgerEntryType.payable,
+        status: PaymentStatus.overdue,
       ),
-    );
-  },
-);
+    ),
+  );
+});
 
 UserEntity? _userFromAuthState(AsyncValue<UserEntity?> authState) {
   return authState.when(

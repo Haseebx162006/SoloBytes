@@ -44,6 +44,7 @@ class MarkPaidUseCase {
       id: '',
       userId: userId,
       type: txType,
+      nature: TransactionNature.normal,
       category: entryType == LedgerEntryType.receivable
           ? 'Receivable Payment'
           : 'Payable Payment',

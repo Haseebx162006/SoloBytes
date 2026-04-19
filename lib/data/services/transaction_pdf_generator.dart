@@ -7,17 +7,24 @@ import 'package:solobytes/domain/entities/transaction.dart';
 class TransactionPdfGenerator {
   const TransactionPdfGenerator._();
 
-  static Future<Uint8List> generate(List<TransactionEntity> transactions) async {
+  static Future<Uint8List> generate(
+    List<TransactionEntity> transactions,
+  ) async {
     final pdf = pw.Document();
 
+    final normalTransactions = transactions
+        .where((tx) => tx.isNormalNature)
+        .toList(growable: false);
+
     // Sort by date descending
-    final sorted = [...transactions]..sort((a, b) => b.date.compareTo(a.date));
+    final sorted = [...normalTransactions]
+      ..sort((a, b) => b.date.compareTo(a.date));
 
     // Calculate totals
     double totalIncome = 0;
     double totalExpense = 0;
     for (final tx in sorted) {
-      if (tx.type == TxType.sale) {
+      if (tx.isIncome) {
         totalIncome += tx.amount;
       } else {
         totalExpense += tx.amount;
@@ -41,23 +48,14 @@ class TransactionPdfGenerator {
       fontWeight: pw.FontWeight.bold,
       color: primaryColor,
     );
-    final subtitleStyle = pw.TextStyle(
-      fontSize: 10,
-      color: textSecondary,
-    );
+    final subtitleStyle = pw.TextStyle(fontSize: 10, color: textSecondary);
     final headingStyle = pw.TextStyle(
       fontSize: 12,
       fontWeight: pw.FontWeight.bold,
       color: textPrimary,
     );
-    final bodyStyle = pw.TextStyle(
-      fontSize: 9,
-      color: textPrimary,
-    );
-    final bodySecondary = pw.TextStyle(
-      fontSize: 9,
-      color: textSecondary,
-    );
+    final bodyStyle = pw.TextStyle(fontSize: 9, color: textPrimary);
+    final bodySecondary = pw.TextStyle(fontSize: 9, color: textSecondary);
     final amountBold = pw.TextStyle(
       fontSize: 14,
       fontWeight: pw.FontWeight.bold,
@@ -204,7 +202,7 @@ class TransactionPdfGenerator {
                 // ── TABLE ROWS ───────────────────────────
                 ...pageTransactions.asMap().entries.map((entry) {
                   final tx = entry.value;
-                  final isSale = tx.type == TxType.sale;
+                  final isIncome = tx.isIncome;
                   final rowBg = entry.key.isEven
                       ? PdfColors.white
                       : PdfColor.fromHex('#FAFAFA');
@@ -217,20 +215,14 @@ class TransactionPdfGenerator {
                     decoration: pw.BoxDecoration(
                       color: rowBg,
                       border: pw.Border(
-                        bottom: pw.BorderSide(
-                          color: dividerColor,
-                          width: 0.5,
-                        ),
+                        bottom: pw.BorderSide(color: dividerColor, width: 0.5),
                       ),
                     ),
                     child: pw.Row(
                       children: [
                         pw.Expanded(
                           flex: 2,
-                          child: pw.Text(
-                            formatDate(tx.date),
-                            style: bodyStyle,
-                          ),
+                          child: pw.Text(formatDate(tx.date), style: bodyStyle),
                         ),
                         pw.Expanded(
                           flex: 1,
@@ -240,15 +232,17 @@ class TransactionPdfGenerator {
                               vertical: 2,
                             ),
                             decoration: pw.BoxDecoration(
-                              color: isSale ? primaryLight : PdfColor.fromHex('#FEF2F2'),
+                              color: isIncome
+                                  ? primaryLight
+                                  : PdfColor.fromHex('#FEF2F2'),
                               borderRadius: pw.BorderRadius.circular(4),
                             ),
                             child: pw.Text(
-                              isSale ? 'Sale' : 'Expense',
+                              isIncome ? 'Income' : 'Expense',
                               style: pw.TextStyle(
                                 fontSize: 8,
                                 fontWeight: pw.FontWeight.bold,
-                                color: isSale ? incomeColor : expenseColor,
+                                color: isIncome ? incomeColor : expenseColor,
                               ),
                             ),
                           ),
@@ -288,11 +282,11 @@ class TransactionPdfGenerator {
                         pw.Expanded(
                           flex: 2,
                           child: pw.Text(
-                            '${isSale ? '+' : '-'}${formatAmount(tx.amount)}',
+                            '${isIncome ? '+' : '-'}${formatAmount(tx.amount)}',
                             style: pw.TextStyle(
                               fontSize: 10,
                               fontWeight: pw.FontWeight.bold,
-                              color: isSale ? incomeColor : expenseColor,
+                              color: isIncome ? incomeColor : expenseColor,
                             ),
                             textAlign: pw.TextAlign.right,
                           ),
@@ -350,10 +344,7 @@ class TransactionPdfGenerator {
           children: [
             pw.Text(label, style: labelStyle),
             pw.SizedBox(height: 4),
-            pw.Text(
-              value,
-              style: amountStyle.copyWith(color: valueColor),
-            ),
+            pw.Text(value, style: amountStyle.copyWith(color: valueColor)),
           ],
         ),
       ),

@@ -132,8 +132,7 @@ class ExcelParser {
     }
 
     // 3. Flexible: check if ANY recognized column exists
-    final recognized =
-        headers.where((h) => _knownColumns.contains(h)).toList();
+    final recognized = headers.where((h) => _knownColumns.contains(h)).toList();
     if (recognized.isNotEmpty) {
       return _ExcelSchema.flexible;
     }
@@ -203,8 +202,7 @@ class ExcelParser {
         final category = colIndex.containsKey('category')
             ? _cellToText(_valueAt(row, colIndex['category']!)).trim()
             : '';
-        final effectiveCategory =
-            category.isNotEmpty ? category : 'Imported';
+        final effectiveCategory = category.isNotEmpty ? category : 'Imported';
 
         final note = colIndex.containsKey('note')
             ? _cellToText(_valueAt(row, colIndex['note']!)).trim()
@@ -213,18 +211,16 @@ class ExcelParser {
         final productName = colIndex.containsKey('productname')
             ? _cellToText(_valueAt(row, colIndex['productname']!)).trim()
             : null;
-        final effectiveProduct =
-            (productName != null && productName.isNotEmpty)
-                ? productName
-                : null;
+        final effectiveProduct = (productName != null && productName.isNotEmpty)
+            ? productName
+            : null;
 
         final personName = colIndex.containsKey('personname')
             ? _cellToText(_valueAt(row, colIndex['personname']!)).trim()
             : null;
-        final effectivePerson =
-            (personName != null && personName.isNotEmpty)
-                ? personName
-                : null;
+        final effectivePerson = (personName != null && personName.isNotEmpty)
+            ? personName
+            : null;
 
         final dueDate = colIndex.containsKey('duedate')
             ? _parseDate(_valueAt(row, colIndex['duedate']!))
@@ -234,97 +230,102 @@ class ExcelParser {
 
         // ── Expense transaction ────────────────────────────
         if (hasExpenseCol) {
-          final expenseAmt =
-              _parseAmount(_valueAt(row, colIndex['expense']!));
+          final expenseAmt = _parseAmount(_valueAt(row, colIndex['expense']!));
           if (expenseAmt != null && expenseAmt > 0) {
-            parsedTransactions.add(TransactionEntity(
-              id: '',
-              userId: '',
-              type: TxType.expense,
-              category: effectiveCategory,
-              amount: expenseAmt,
-              note: note,
-              date: effectiveDate,
-              source: 'excel_import',
-              personName: effectivePerson,
-              productName: effectiveProduct,
-            ));
+            parsedTransactions.add(
+              TransactionEntity(
+                id: '',
+                userId: '',
+                type: TxType.expense,
+                nature: TransactionNature.normal,
+                category: effectiveCategory,
+                amount: expenseAmt,
+                note: note,
+                date: effectiveDate,
+                source: 'excel_import',
+                personName: effectivePerson,
+                productName: effectiveProduct,
+              ),
+            );
           }
         }
 
         // ── Sale / Income transaction ─────────────────────
         if (hasSaleCol) {
-          final saleColKey =
-              colIndex.containsKey('sale') ? 'sale' : 'income';
-          final saleAmt =
-              _parseAmount(_valueAt(row, colIndex[saleColKey]!));
+          final saleColKey = colIndex.containsKey('sale') ? 'sale' : 'income';
+          final saleAmt = _parseAmount(_valueAt(row, colIndex[saleColKey]!));
           if (saleAmt != null && saleAmt > 0) {
-            parsedTransactions.add(TransactionEntity(
-              id: '',
-              userId: '',
-              type: TxType.sale,
-              category: effectiveCategory,
-              amount: saleAmt,
-              note: note,
-              date: effectiveDate,
-              source: 'excel_import',
-              personName: effectivePerson,
-              productName: effectiveProduct ?? 'Imported Sale',
-            ));
+            parsedTransactions.add(
+              TransactionEntity(
+                id: '',
+                userId: '',
+                type: TxType.sale,
+                nature: TransactionNature.normal,
+                category: effectiveCategory,
+                amount: saleAmt,
+                note: note,
+                date: effectiveDate,
+                source: 'excel_import',
+                personName: effectivePerson,
+                productName: effectiveProduct ?? 'Imported Sale',
+              ),
+            );
           }
         }
 
         // ── Payable ledger entry ──────────────────────────
         if (hasPayableCol) {
-          final payableAmt =
-              _parseAmount(_valueAt(row, colIndex['payable']!));
+          final payableAmt = _parseAmount(_valueAt(row, colIndex['payable']!));
           if (payableAmt != null && payableAmt > 0) {
             final vendorName = colIndex.containsKey('vendorname')
-                ? _cellToText(_valueAt(row, colIndex['vendorname']!))
-                    .trim()
+                ? _cellToText(_valueAt(row, colIndex['vendorname']!)).trim()
                 : '';
-            parsedReceivables.add(ReceivableEntity(
-              id: '',
-              userId: '',
-              entryType: LedgerEntryType.payable,
-              customerName: '',
-              vendorName: vendorName.isNotEmpty
-                  ? vendorName
-                  : (effectivePerson ?? 'Imported Vendor'),
-              amount: payableAmt,
-              dueDate: effectiveDueDate,
-              status: PaymentStatus.unpaid,
-              invoiceRef: null,
-              createdAt: DateTime.now(),
-              paidAt: null,
-            ));
+            parsedReceivables.add(
+              ReceivableEntity(
+                id: '',
+                userId: '',
+                entryType: LedgerEntryType.payable,
+                customerName: '',
+                vendorName: vendorName.isNotEmpty
+                    ? vendorName
+                    : (effectivePerson ?? 'Imported Vendor'),
+                amount: payableAmt,
+                dueDate: effectiveDueDate,
+                status: PaymentStatus.unpaid,
+                invoiceRef: null,
+                createdAt: DateTime.now(),
+                paidAt: null,
+              ),
+            );
           }
         }
 
         // ── Receivable ledger entry ───────────────────────
         if (hasReceivableCol) {
-          final receivableAmt =
-              _parseAmount(_valueAt(row, colIndex['receivable']!));
+          final receivableAmt = _parseAmount(
+            _valueAt(row, colIndex['receivable']!),
+          );
           if (receivableAmt != null && receivableAmt > 0) {
             final custName = colIndex.containsKey('customername')
-                ? _cellToText(_valueAt(row, colIndex['customername']!))
-                    .trim()
+                ? _cellToText(_valueAt(row, colIndex['customername']!)).trim()
                 : '';
-            parsedReceivables.add(ReceivableEntity(
-              id: '',
-              userId: '',
-              entryType: LedgerEntryType.receivable,
-              customerName: custName.isNotEmpty
-                  ? custName
-                  : (effectivePerson ?? 'Imported Customer'),
-              vendorName: '',
-              amount: receivableAmt,
-              dueDate: effectiveDueDate,
-              status: PaymentStatus.unpaid,
-              invoiceRef: null,
-              createdAt: DateTime.now(),
-              paidAt: null,
-            ));
+            parsedReceivables.add(
+              ReceivableEntity(
+                id: '',
+                userId: '',
+                entryType: LedgerEntryType.receivable,
+                customerName: custName.isNotEmpty
+                    ? custName
+                    : (effectivePerson ?? 'Imported Customer'),
+                vendorName: '',
+                amount: receivableAmt,
+                dueDate: effectiveDueDate,
+                status: PaymentStatus.unpaid,
+                invoiceRef: null,
+                createdAt: DateTime.now(),
+                paidAt: null,
+              ),
+            );
           }
         }
       } catch (error) {
@@ -332,8 +333,7 @@ class ExcelParser {
       }
     }
 
-    final successCount =
-        parsedTransactions.length + parsedReceivables.length;
+    final successCount = parsedTransactions.length + parsedReceivables.length;
 
     return ImportResult(
       transactions: parsedTransactions,
@@ -371,8 +371,7 @@ class ExcelParser {
       }
     }
 
-    final successCount =
-        parsedTransactions.length + parsedReceivables.length;
+    final successCount = parsedTransactions.length + parsedReceivables.length;
 
     return ImportResult(
       transactions: parsedTransactions,
@@ -426,6 +425,7 @@ class ExcelParser {
       id: '',
       userId: '',
       type: type,
+      nature: TransactionNature.normal,
       category: category,
       amount: amount,
       note: note,
@@ -490,10 +490,11 @@ class ExcelParser {
 
   List<String> _normalizeHeaders(List<Data?> row) {
     final headers = row
-        .map((cell) => _cellToText(cell?.value)
-            .trim()
-            .toLowerCase()
-            .replaceAll(RegExp(r'\s+'), ''))
+        .map(
+          (cell) => _cellToText(
+            cell?.value,
+          ).trim().toLowerCase().replaceAll(RegExp(r'\s+'), ''),
+        )
         .toList(growable: true);
 
     while (headers.isNotEmpty && headers.last.isEmpty) {

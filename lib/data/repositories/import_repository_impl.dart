@@ -128,6 +128,7 @@ class ImportRepositoryImpl {
         final payload = <String, dynamic>{
           'userId': userId,
           'type': transaction.type.name,
+          'nature': transaction.nature.name,
           'category': transaction.category.trim(),
           'amount': transaction.amount,
           'note': transaction.note.trim(),

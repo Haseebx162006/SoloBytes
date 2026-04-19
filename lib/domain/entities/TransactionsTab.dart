@@ -72,7 +72,7 @@ class TransactionsTab extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text('Sale', style: AppTextStyles.body),
+                            Text('Income', style: AppTextStyles.body),
                           ],
                         ),
                       ),
@@ -145,7 +145,11 @@ class TransactionsTab extends ConsumerWidget {
           Expanded(
             child: transactionsAsync.when(
               data: (transactions) {
-                if (transactions.isEmpty) {
+                final normalTransactions = transactions
+                    .where((tx) => tx.isNormalNature)
+                    .toList(growable: false);
+
+                if (normalTransactions.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -184,10 +188,12 @@ class TransactionsTab extends ConsumerWidget {
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                    itemCount: transactions.length,
+                    itemCount: normalTransactions.length,
                     itemBuilder: (context, index) {
-                      final tx = transactions[index];
-                      final isSale = tx.type == TxType.sale;
+                      final tx = normalTransactions[index];
+                      final isIncome = tx.isIncome;
+                      final transactionTitle = _transactionTitle(tx);
+                      final transactionKind = _transactionKindLabel(tx);
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
@@ -214,23 +220,23 @@ class TransactionsTab extends ConsumerWidget {
                           leading: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: isSale
+                              color: isIncome
                                   ? AppColors.incomeBg
                                   : AppColors.expenseBg,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
-                              isSale
+                              isIncome
                                   ? Icons.arrow_downward_rounded
                                   : Icons.arrow_upward_rounded,
-                              color: isSale
+                              color: isIncome
                                   ? AppColors.income
                                   : AppColors.expense,
                               size: 20,
                             ),
                           ),
                           title: Text(
-                            tx.note,
+                            transactionTitle,
                             style: AppTextStyles.bodyMedium,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -240,7 +246,7 @@ class TransactionsTab extends ConsumerWidget {
                             children: [
                               const SizedBox(height: 2),
                               Text(
-                                '${tx.date.toLocal().toString().split(' ')[0]} · ${tx.category}',
+                                '${tx.date.toLocal().toString().split(' ')[0]} · $transactionKind · ${tx.category}',
                                 style: AppTextStyles.caption,
                               ),
                               if (tx.personName != null &&
@@ -267,9 +273,9 @@ class TransactionsTab extends ConsumerWidget {
                             ],
                           ),
                           trailing: Text(
-                            '${isSale ? '+' : '-'}\$${tx.amount.toStringAsFixed(2)}',
+                            '${isIncome ? '+' : '-'}\$${tx.amount.toStringAsFixed(2)}',
                             style: AppTextStyles.amount.copyWith(
-                              color: isSale
+                              color: isIncome
                                   ? AppColors.income
                                   : AppColors.expense,
                               fontSize: 15,
@@ -323,7 +329,11 @@ class TransactionsTab extends ConsumerWidget {
       error: (_, __) => <TransactionEntity>[],
     );
 
-    if (transactions.isEmpty) {
+    final normalTransactions = transactions
+        .where((tx) => tx.isNormalNature)
+        .toList(growable: false);
+
+    if (normalTransactions.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No transactions to export.')),
@@ -333,7 +343,9 @@ class TransactionsTab extends ConsumerWidget {
     }
 
     try {
-      final pdfBytes = await TransactionPdfGenerator.generate(transactions);
+      final pdfBytes = await TransactionPdfGenerator.generate(
+        normalTransactions,
+      );
 
       await Printing.layoutPdf(
         onLayout: (format) async => pdfBytes,
@@ -341,11 +353,29 @@ class TransactionsTab extends ConsumerWidget {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to generate PDF: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to generate PDF: $e')));
       }
     }
+  }
+
+  String _transactionTitle(TransactionEntity tx) {
+    final trimmedNote = tx.note.trim();
+    if (trimmedNote.isNotEmpty) {
+      return trimmedNote;
+    }
+
+    final trimmedCategory = tx.category.trim();
+    if (trimmedCategory.isNotEmpty) {
+      return trimmedCategory;
+    }
+
+    return tx.isIncome ? 'Income' : 'Expense';
+  }
+
+  String _transactionKindLabel(TransactionEntity tx) {
+    return tx.kindLabel;
   }
 
   // 🔹 ADD TRANSACTION DIALOG
@@ -426,7 +456,7 @@ class TransactionsTab extends ConsumerWidget {
                         items: const [
                           DropdownMenuItem(
                             value: TxType.sale,
-                            child: Text('Sale'),
+                            child: Text('Income'),
                           ),
                           DropdownMenuItem(
                             value: TxType.expense,
@@ -534,6 +564,7 @@ class TransactionsTab extends ConsumerWidget {
                   userId: user.uid,
                   amount: double.parse(amountController.text),
                   type: selectedType,
+                  nature: TransactionNature.normal,
                   category: categoryController.text,
                   date: DateTime.now(),
                   note: descController.text,

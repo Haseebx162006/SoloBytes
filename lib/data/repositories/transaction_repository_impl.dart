@@ -28,6 +28,7 @@ class TransactionRepositoryImpl {
         id: transactionId,
         userId: transaction.userId.trim(),
         type: transaction.type,
+        nature: transaction.nature,
         category: transaction.category,
         amount: transaction.amount,
         note: transaction.note,
@@ -103,7 +104,7 @@ class TransactionRepositoryImpl {
       }
 
       return transactions;
-    } on FirebaseException catch (e) {
+    } on FirebaseException {
       return const [];
     } catch (_) {
       return const [];

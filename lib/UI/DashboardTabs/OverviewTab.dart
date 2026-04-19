@@ -18,6 +18,24 @@ class OverviewTab extends ConsumerWidget {
     return '\$${v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 2)}';
   }
 
+  String _transactionTitle(TransactionEntity tx) {
+    final trimmedNote = tx.note.trim();
+    if (trimmedNote.isNotEmpty) {
+      return trimmedNote;
+    }
+
+    final trimmedCategory = tx.category.trim();
+    if (trimmedCategory.isNotEmpty) {
+      return trimmedCategory;
+    }
+
+    return tx.isIncome ? 'Income' : 'Expense';
+  }
+
+  String _transactionKindLabel(TransactionEntity tx) {
+    return tx.kindLabel;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardSummary = ref.watch(dashboardProvider);
@@ -30,6 +48,10 @@ class OverviewTab extends ConsumerWidget {
           loading: () => <TransactionEntity>[],
           error: (_, __) => <TransactionEntity>[],
         );
+
+        final normalTransactions = transactions
+            .where((tx) => tx.isNormalNature)
+            .toList(growable: false);
 
         return RefreshIndicator(
           color: AppColors.primary,
@@ -67,7 +89,7 @@ class OverviewTab extends ConsumerWidget {
                 const SizedBox(height: 24),
               ],
 
-              _buildRecentTransactions(context, transactions),
+              _buildRecentTransactions(context, normalTransactions),
               const SizedBox(height: 32),
             ],
           ),
@@ -400,7 +422,9 @@ class OverviewTab extends ConsumerWidget {
                 const Divider(height: 1, indent: 56, color: AppColors.divider),
             itemBuilder: (context, index) {
               final tx = recent[index];
-              final isIncome = tx.type == TxType.sale;
+              final isIncome = tx.isIncome;
+              final transactionTitle = _transactionTitle(tx);
+              final transactionKind = _transactionKindLabel(tx);
 
               return ListTile(
                 leading: Container(
@@ -417,11 +441,11 @@ class OverviewTab extends ConsumerWidget {
                     size: 18,
                   ),
                 ),
-                title: Text(
-                  tx.note.isNotEmpty ? tx.note : tx.category,
-                  style: AppTextStyles.bodyMedium,
+                title: Text(transactionTitle, style: AppTextStyles.bodyMedium),
+                subtitle: Text(
+                  '$transactionKind · ${tx.category}',
+                  style: AppTextStyles.caption,
                 ),
-                subtitle: Text(tx.category, style: AppTextStyles.caption),
                 trailing: Text(
                   _formatAmount(tx.amount),
                   style: AppTextStyles.amount.copyWith(

@@ -1,12 +1,19 @@
 import 'package:solobytes/data/repositories/person_account_repository_impl.dart';
 import 'package:solobytes/data/repositories/receivable_repository_impl.dart';
+import 'package:solobytes/data/repositories/transaction_repository_impl.dart';
 import 'package:solobytes/domain/entities/receivable.dart';
+import 'package:solobytes/domain/entities/transaction.dart';
 
 class TrackReceivableUseCase {
-  const TrackReceivableUseCase(this._repository, this._personAccountRepository);
+  const TrackReceivableUseCase(
+    this._repository,
+    this._personAccountRepository,
+    this._transactionRepository,
+  );
 
   final ReceivableRepositoryImpl _repository;
   final PersonAccountRepositoryImpl _personAccountRepository;
+  final TransactionRepositoryImpl _transactionRepository;
 
   Future<ReceivableEntity> execute({
     required LedgerEntryType entryType,
@@ -52,6 +59,46 @@ class TrackReceivableUseCase {
     );
 
     final savedItem = await _repository.saveItem(item);
+
+    final transactionType = entryType == LedgerEntryType.receivable
+        ? TxType.sale
+        : TxType.expense;
+
+    final transactionNature = entryType == LedgerEntryType.receivable
+        ? TransactionNature.owedToUs
+        : TransactionNature.weOwe;
+
+    try {
+      await _transactionRepository.addTransaction(
+        TransactionEntity(
+          id: '',
+          userId: normalizedUserId,
+          type: transactionType,
+          nature: transactionNature,
+          category: entryType == LedgerEntryType.receivable
+              ? 'Receivable'
+              : 'Payable',
+          amount: amount,
+          note: entryType == LedgerEntryType.receivable
+              ? 'Receivable recorded for $normalizedName'
+              : 'Payable recorded for $normalizedName',
+          date: now,
+          source: 'ledger_debt',
+          personName: normalizedName,
+        ),
+      );
+    } catch (_) {
+      // Roll back the ledger record if transaction creation fails.
+      try {
+        await _repository.deleteItem(
+          entryType: entryType,
+          itemId: savedItem.id,
+        );
+      } catch (_) {
+        // Ignore rollback failures and surface the original error.
+      }
+      rethrow;
+    }
 
     try {
       // Update PersonAccount balance

@@ -6,6 +6,7 @@ class TransactionModel {
     required this.id,
     required this.userId,
     required this.type,
+    required this.nature,
     required this.category,
     required this.amount,
     required this.note,
@@ -18,6 +19,7 @@ class TransactionModel {
   final String id;
   final String userId;
   final TxType type;
+  final TransactionNature nature;
   final String category;
   final double amount;
   final String note;
@@ -31,6 +33,7 @@ class TransactionModel {
       id: entity.id,
       userId: entity.userId,
       type: entity.type,
+      nature: entity.nature,
       category: entity.category,
       amount: entity.amount,
       note: entity.note,
@@ -49,6 +52,7 @@ class TransactionModel {
       id: id,
       userId: (map['userId'] ?? '').toString(),
       type: _txTypeFromValue(map['type']),
+      nature: _transactionNatureFromValue(map['nature']),
       category: (map['category'] ?? '').toString(),
       amount: _doubleFromValue(map['amount']),
       note: (map['note'] ?? '').toString(),
@@ -64,6 +68,7 @@ class TransactionModel {
       id: id,
       userId: userId,
       type: type,
+      nature: nature,
       category: category,
       amount: amount,
       note: note,
@@ -79,6 +84,7 @@ class TransactionModel {
       'id': id,
       'userId': userId,
       'type': type.name,
+      'nature': nature.name,
       'category': category,
       'amount': amount,
       'note': note,
@@ -106,6 +112,20 @@ class TransactionModel {
     }
 
     return TxType.expense;
+  }
+
+  static TransactionNature _transactionNatureFromValue(dynamic value) {
+    final raw = (value ?? '').toString().trim().toLowerCase();
+
+    if (raw == 'weowe' || raw == 'we_owe' || raw == 'we owe') {
+      return TransactionNature.weOwe;
+    }
+
+    if (raw == 'owedtous' || raw == 'owed_to_us' || raw == 'owed to us') {
+      return TransactionNature.owedToUs;
+    }
+
+    return TransactionNature.normal;
   }
 
   static DateTime _dateFromValue(dynamic value) {

@@ -68,6 +68,10 @@ final cashSummaryProvider = FutureProvider<CashSummary>((ref) async {
   final Map<String, double> expenseCategoryMap = {};
 
   for (final tx in transactions) {
+    if (!tx.isNormalNature) {
+      continue;
+    }
+
     final amount = tx.amount.abs();
     if (tx.type == TxType.expense) {
       totalExpenses += amount;
@@ -81,7 +85,8 @@ final cashSummaryProvider = FutureProvider<CashSummary>((ref) async {
   int unpaidReceivablesCount = 0;
   double totalOwedToUs = 0.0;
   for (final item in receivables) {
-    if (item.status == PaymentStatus.unpaid || item.status == PaymentStatus.overdue) {
+    if (item.status == PaymentStatus.unpaid ||
+        item.status == PaymentStatus.overdue) {
       unpaidReceivablesCount++;
       totalOwedToUs += item.amount;
     }
@@ -90,13 +95,14 @@ final cashSummaryProvider = FutureProvider<CashSummary>((ref) async {
   int unpaidPayablesCount = 0;
   double totalWeOwe = 0.0;
   for (final item in payables) {
-    if (item.status == PaymentStatus.unpaid || item.status == PaymentStatus.overdue) {
+    if (item.status == PaymentStatus.unpaid ||
+        item.status == PaymentStatus.overdue) {
       unpaidPayablesCount++;
       totalWeOwe += item.amount;
     }
   }
 
-  // Include ledger data in Net Balance calculation: 
+  // Include ledger data in Net Balance calculation:
   // (Total Sales - Total Expenses) + Owed to Us - What We Owe
   final netBalance = (totalSales - totalExpenses) + totalOwedToUs - totalWeOwe;
 

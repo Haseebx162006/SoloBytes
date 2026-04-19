@@ -26,10 +26,15 @@ class GetSummaryUseCase {
     final Map<String, double> expenseByCategory = {};
 
     for (final transaction in rawData.transactions) {
+      if (!_isNormalNature(transaction['nature'])) {
+        continue;
+      }
+
       final amount = _toDouble(transaction['amount']);
       final type = (transaction['type'] ?? '').toString().toLowerCase();
-      final category =
-          (transaction['category'] ?? 'Uncategorized').toString().trim();
+      final category = (transaction['category'] ?? 'Uncategorized')
+          .toString()
+          .trim();
 
       if (type == 'sale' || type == 'income') {
         totalSales += amount;
@@ -119,5 +124,10 @@ class GetSummaryUseCase {
     }
 
     return _toBool(entry['isPaid']);
+  }
+
+  bool _isNormalNature(dynamic value) {
+    final raw = (value ?? '').toString().trim().toLowerCase();
+    return raw.isEmpty || raw == 'normal';
   }
 }

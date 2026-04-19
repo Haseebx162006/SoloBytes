@@ -75,6 +75,10 @@ final dashboardProvider = FutureProvider<CashSummary>((ref) async {
 
   // 🔥 CORE FIX: SAFE CALCULATION
   for (final tx in transactions) {
+    if (!tx.isNormalNature) {
+      continue;
+    }
+
     final amount = tx.amount.abs(); // handles negative + positive
 
     if (tx.type == TxType.expense) {

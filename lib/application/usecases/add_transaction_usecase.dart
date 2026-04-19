@@ -27,7 +27,8 @@ class AddTransactionUseCase {
     final source = transaction.source.trim();
     if (source != 'manual' &&
         source != 'excel_import' &&
-        source != 'ledger_payment') {
+        source != 'ledger_payment' &&
+        source != 'ledger_debt') {
       throw Exception('Invalid source');
     }
 
@@ -36,17 +37,23 @@ class AddTransactionUseCase {
       transaction,
     );
 
-    // Update person account if personName is provided and it's an expense
+    // Person account adjustments must follow explicit debt nature only.
     if (transaction.personName != null &&
-        transaction.personName!.trim().isNotEmpty &&
-        transaction.type == TxType.expense) {
+        transaction.personName!.trim().isNotEmpty) {
       try {
-        // For expenses, we owe them money (negative balance for us)
-        await _personAccountRepository.updateOrCreate(
-          userId: transaction.userId,
-          name: transaction.personName!,
-          amountChange: -transaction.amount,
-        );
+        if (transaction.nature == TransactionNature.weOwe) {
+          await _personAccountRepository.updateOrCreate(
+            userId: transaction.userId,
+            name: transaction.personName!,
+            amountChange: -transaction.amount,
+          );
+        } else if (transaction.nature == TransactionNature.owedToUs) {
+          await _personAccountRepository.updateOrCreate(
+            userId: transaction.userId,
+            name: transaction.personName!,
+            amountChange: transaction.amount,
+          );
+        }
       } catch (_) {
         // Continue even if person account update fails
       }
