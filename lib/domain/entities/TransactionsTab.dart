@@ -1,8 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 import 'package:solobytes/Providers/transactions_provider.dart';
+import 'package:solobytes/data/services/transaction_pdf_generator.dart';
 import 'package:solobytes/domain/entities/transaction.dart';
+import 'package:solobytes/theme/app_colors.dart';
+import 'package:solobytes/theme/app_text_styles.dart';
 
 class TransactionsTab extends ConsumerWidget {
   const TransactionsTab({super.key});
@@ -12,24 +16,86 @@ class TransactionsTab extends ConsumerWidget {
     final transactionsAsync = ref.watch(transactionsProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.scaffoldBg,
       body: Column(
         children: [
           // 🔹 FILTER SECTION
-          Padding(
-            padding: const EdgeInsets.all(8.0),
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: AppColors.cardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.divider, width: 1),
+            ),
             child: Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<TxType>(
+                  child: DropdownButtonFormField<TxType?>(
                     value: ref.watch(transactionsFilterProvider).selectedType,
-                    hint: const Text('All Types'),
+                    hint: Text(
+                      'All Types',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textHint,
+                      ),
+                    ),
                     isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('All Types')),
-                      DropdownMenuItem(value: TxType.sale, child: Text('Sale')),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                    style: AppTextStyles.bodyMedium,
+                    dropdownColor: AppColors.cardBg,
+                    borderRadius: BorderRadius.circular(14),
+                    items: [
+                      DropdownMenuItem(
+                        value: null,
+                        child: Text('All Types', style: AppTextStyles.body),
+                      ),
+                      DropdownMenuItem(
+                        value: TxType.sale,
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppColors.incomeBg,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_downward_rounded,
+                                size: 14,
+                                color: AppColors.income,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('Sale', style: AppTextStyles.body),
+                          ],
+                        ),
+                      ),
                       DropdownMenuItem(
                         value: TxType.expense,
-                        child: Text('Expense'),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppColors.expenseBg,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_upward_rounded,
+                                size: 14,
+                                color: AppColors.expense,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('Expense', style: AppTextStyles.body),
+                          ],
+                        ),
                       ),
                     ],
                     onChanged: (value) {
@@ -39,11 +105,37 @@ class TransactionsTab extends ConsumerWidget {
                     },
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    ref.read(transactionsFilterProvider.notifier).clearAll();
-                  },
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.scaffoldBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.clear_rounded,
+                      color: AppColors.textHint,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      ref.read(transactionsFilterProvider.notifier).clearAll();
+                    },
+                    tooltip: 'Clear filter',
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.picture_as_pdf_rounded,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    onPressed: () => _downloadPdf(context, ref),
+                    tooltip: 'Download PDF',
+                  ),
                 ),
               ],
             ),
@@ -54,53 +146,134 @@ class TransactionsTab extends ConsumerWidget {
             child: transactionsAsync.when(
               data: (transactions) {
                 if (transactions.isEmpty) {
-                  return const Center(child: Text('No transactions found.'));
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.primarySurface,
+                            borderRadius: BorderRadius.circular(50),
+                          ),
+                          child: const Icon(
+                            Icons.receipt_long_outlined,
+                            color: AppColors.primary,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No transactions found',
+                          style: AppTextStyles.heading3,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Tap + to add your first transaction',
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                    ),
+                  );
                 }
 
                 return RefreshIndicator(
+                  color: AppColors.primary,
                   onRefresh: () async {
                     await ref.read(transactionsProvider.notifier).refresh();
                   },
                   child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                     itemCount: transactions.length,
                     itemBuilder: (context, index) {
                       final tx = transactions[index];
                       final isSale = tx.type == TxType.sale;
 
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isSale
-                              ? Colors.green[100]
-                              : Colors.red[100],
-                          child: Icon(
-                            isSale ? Icons.arrow_downward : Icons.arrow_upward,
-                            color: isSale ? Colors.green : Colors.red,
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBg,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppColors.divider,
+                            width: 1,
                           ),
-                        ),
-                        title: Text(tx.note),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${tx.date.toLocal().toString().split(' ')[0]} - ${tx.category}',
+                          boxShadow: const [
+                            BoxShadow(
+                              color: AppColors.shadow,
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
                             ),
-                            if (tx.personName != null && tx.personName!.isNotEmpty)
-                              Text(
-                                'Person: ${tx.personName}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
                           ],
                         ),
-                        trailing: Text(
-                          '${isSale ? '+' : '-'}\$${tx.amount.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: isSale ? Colors.green : Colors.red,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 6,
+                          ),
+                          leading: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isSale
+                                  ? AppColors.incomeBg
+                                  : AppColors.expenseBg,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              isSale
+                                  ? Icons.arrow_downward_rounded
+                                  : Icons.arrow_upward_rounded,
+                              color: isSale
+                                  ? AppColors.income
+                                  : AppColors.expense,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            tx.note,
+                            style: AppTextStyles.bodyMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 2),
+                              Text(
+                                '${tx.date.toLocal().toString().split(' ')[0]} · ${tx.category}',
+                                style: AppTextStyles.caption,
+                              ),
+                              if (tx.personName != null &&
+                                  tx.personName!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.person_outline,
+                                        size: 12,
+                                        color: AppColors.textHint,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        tx.personName!,
+                                        style: AppTextStyles.caption.copyWith(
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                          trailing: Text(
+                            '${isSale ? '+' : '-'}\$${tx.amount.toStringAsFixed(2)}',
+                            style: AppTextStyles.amount.copyWith(
+                              color: isSale
+                                  ? AppColors.income
+                                  : AppColors.expense,
+                              fontSize: 15,
+                            ),
                           ),
                         ),
                       );
@@ -108,8 +281,23 @@ class TransactionsTab extends ConsumerWidget {
                   ),
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Error: $err')),
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+              error: (err, stack) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: AppColors.error,
+                      size: 36,
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Error: $err', style: AppTextStyles.caption),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -117,10 +305,47 @@ class TransactionsTab extends ConsumerWidget {
 
       // 🔹 ADD BUTTON
       floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 3,
         onPressed: () => _showAddTransactionDialog(context, ref),
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add_rounded, size: 28),
       ),
     );
+  }
+
+  // 🔹 DOWNLOAD PDF
+  Future<void> _downloadPdf(BuildContext context, WidgetRef ref) async {
+    final transactionsAsync = ref.read(transactionsProvider);
+    final transactions = transactionsAsync.when(
+      data: (data) => data,
+      loading: () => <TransactionEntity>[],
+      error: (_, __) => <TransactionEntity>[],
+    );
+
+    if (transactions.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No transactions to export.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      final pdfBytes = await TransactionPdfGenerator.generate(transactions);
+
+      await Printing.layoutPdf(
+        onLayout: (format) async => pdfBytes,
+        name: 'CashPilot_Transactions_${DateTime.now().millisecondsSinceEpoch}',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate PDF: $e')),
+        );
+      }
+    }
   }
 
   // 🔹 ADD TRANSACTION DIALOG
@@ -136,7 +361,29 @@ class TransactionsTab extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Add Transaction'),
+          backgroundColor: AppColors.background,
+          surfaceTintColor: AppColors.background,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySurface,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text('Add Transaction', style: AppTextStyles.heading3),
+            ],
+          ),
           content: StatefulBuilder(
             builder: (context, setState) {
               return Form(
@@ -146,7 +393,36 @@ class TransactionsTab extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       DropdownButtonFormField<TxType>(
-                        value: selectedType,
+                        initialValue: selectedType,
+                        decoration: InputDecoration(
+                          labelText: 'Type',
+                          labelStyle: AppTextStyles.label,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.border,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.border,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.primary,
+                              width: 1.5,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        dropdownColor: AppColors.cardBg,
                         items: const [
                           DropdownMenuItem(
                             value: TxType.sale,
@@ -162,19 +438,20 @@ class TransactionsTab extends ConsumerWidget {
                             if (value != null) selectedType = value;
                           });
                         },
-                        decoration: const InputDecoration(labelText: 'Type'),
                       ),
+                      const SizedBox(height: 14),
                       TextFormField(
                         controller: descController,
-                        decoration: const InputDecoration(
-                          labelText: 'Description',
-                        ),
+                        style: AppTextStyles.body,
+                        decoration: _inputDecor('Description'),
                         validator: (value) =>
                             value == null || value.isEmpty ? 'Required' : null,
                       ),
+                      const SizedBox(height: 14),
                       TextFormField(
                         controller: amountController,
-                        decoration: const InputDecoration(labelText: 'Amount'),
+                        style: AppTextStyles.body,
+                        decoration: _inputDecor('Amount'),
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
@@ -188,36 +465,57 @@ class TransactionsTab extends ConsumerWidget {
                           return null;
                         },
                       ),
+                      const SizedBox(height: 14),
                       TextFormField(
                         controller: categoryController,
-                        decoration: const InputDecoration(
-                          labelText: 'Category',
-                        ),
+                        style: AppTextStyles.body,
+                        decoration: _inputDecor('Category'),
                         validator: (value) =>
                             value == null || value.isEmpty ? 'Required' : null,
                       ),
-                      if (selectedType == TxType.expense)
+                      if (selectedType == TxType.expense) ...[
+                        const SizedBox(height: 14),
                         TextFormField(
                           controller: personController,
-                          decoration: const InputDecoration(
-                            labelText: 'Person/Vendor Name',
-                            hintText: 'Who did you pay or owe?',
+                          style: AppTextStyles.body,
+                          decoration: _inputDecor(
+                            'Person/Vendor Name',
+                            hint: 'Who did you pay or owe?',
                           ),
                         ),
+                      ],
                     ],
                   ),
                 ),
               );
             },
           ),
-
+          actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+              ),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(fontFamily: 'Poppins'),
+              ),
             ),
-
+            const SizedBox(width: 4),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                elevation: 0,
+              ),
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
 
@@ -247,11 +545,39 @@ class TransactionsTab extends ConsumerWidget {
 
                 await ref.read(transactionsProvider.notifier).add(newTx);
               },
-              child: const Text('Save'),
+              child: const Text(
+                'Save',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         );
       },
+    );
+  }
+
+  InputDecoration _inputDecor(String label, {String? hint}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: AppTextStyles.label.copyWith(color: AppColors.textSecondary),
+      hintStyle: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
 }

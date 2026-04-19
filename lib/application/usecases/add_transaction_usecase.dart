@@ -24,12 +24,6 @@ class AddTransactionUseCase {
       throw Exception('Category is required');
     }
 
-    if (transaction.type == TxType.sale &&
-        (transaction.productName == null ||
-            transaction.productName!.trim().isEmpty)) {
-      throw Exception('Product Name is required for sales transactions.');
-    }
-
     final source = transaction.source.trim();
     if (source != 'manual' &&
         source != 'excel_import' &&
