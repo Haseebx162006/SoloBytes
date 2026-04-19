@@ -117,9 +117,15 @@ class ImportRepositoryImpl {
     }
 
     try {
+      // ── Save transactions under user's subcollection ────────
       for (final transaction in transactions) {
-        final txRef = _firestore.collection('transactions').doc();
-        await setInBatch(txRef, {
+        final txRef = _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('transactions')
+            .doc();
+
+        final payload = <String, dynamic>{
           'userId': userId,
           'type': transaction.type.name,
           'category': transaction.category.trim(),
@@ -129,13 +135,29 @@ class ImportRepositoryImpl {
           'source': transaction.source.trim().isEmpty
               ? 'excel_import'
               : transaction.source.trim(),
-        });
+        };
+
+        // Include productName if present
+        if (transaction.productName != null &&
+            transaction.productName!.trim().isNotEmpty) {
+          payload['productName'] = transaction.productName!.trim();
+        }
+
+        // Include personName if present
+        if (transaction.personName != null &&
+            transaction.personName!.trim().isNotEmpty) {
+          payload['personName'] = transaction.personName!.trim();
+        }
+
+        await setInBatch(txRef, payload);
       }
 
+      // ── Save receivables / payables ─────────────────────────
       for (final receivable in receivables) {
         final collection = receivable.entryType == LedgerEntryType.payable
             ? 'payables'
             : 'receivables';
+
         final receivableRef = _firestore.collection(collection).doc();
 
         final name = receivable.partyName;

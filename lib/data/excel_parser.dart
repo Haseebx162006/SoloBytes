@@ -5,14 +5,15 @@ import 'package:solobytes/domain/entities/import_result.dart';
 import 'package:solobytes/domain/entities/receivable.dart';
 import 'package:solobytes/domain/entities/transaction.dart';
 
-enum _ExcelSchema { transaction, receivable }
+enum _ExcelSchema { transaction, receivable, flexible }
 
 class ExcelParser {
   const ExcelParser();
 
   static const String invalidSchemaError =
-      'Invalid Excel structure. Column headers do not match required format.';
+      'Invalid Excel structure. No recognized column headers found.';
 
+  // ── Rigid schema headers (backward compat) ──────────────────────
   static const List<String> _transactionHeaders = [
     'date',
     'type',
@@ -27,7 +28,7 @@ class ExcelParser {
     'category',
     'amount',
     'note',
-    'productname', // New optional header
+    'productname',
   ];
 
   static const List<String> _receivableHeaders = [
@@ -36,6 +37,30 @@ class ExcelParser {
     'duedate',
     'invoiceref',
   ];
+
+  // ── Recognized flexible column names ────────────────────────────
+  static const Set<String> _knownColumns = {
+    'date',
+    'expense',
+    'sale',
+    'income',
+    'category',
+    'note',
+    'description',
+    'productname',
+    'product',
+    'personname',
+    'person',
+    'payable',
+    'vendorname',
+    'receivable',
+    'customername',
+    'duedate',
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  //  PUBLIC API
+  // ═══════════════════════════════════════════════════════════════
 
   ImportResult parse(Uint8List fileBytes) {
     if (fileBytes.isEmpty) {
@@ -73,40 +98,13 @@ class ExcelParser {
         );
       }
 
-      final parsedTransactions = <TransactionEntity>[];
-      final parsedReceivables = <ReceivableEntity>[];
-      final errors = <String>[];
-
-      for (var rowIndex = 1; rowIndex < rows.length; rowIndex++) {
-        final row = rows[rowIndex];
-        if (_isEmptyRow(row)) {
-          continue;
-        }
-
-        try {
-          if (schema == _ExcelSchema.transaction) {
-            final parsed = _parseTransactionRow(row);
-            parsedTransactions.add(parsed);
-          } else {
-            final parsed = _parseReceivableRow(row);
-            parsedReceivables.add(parsed);
-          }
-        } catch (error) {
-          errors.add('Row ${rowIndex + 1}: ${error.toString()}');
-        }
+      // ── Flexible path ────────────────────────────
+      if (schema == _ExcelSchema.flexible) {
+        return _parseFlexibleRows(headers, rows);
       }
 
-      final successCount = parsedTransactions.length + parsedReceivables.length;
-      final failedCount = errors.length;
-
-      return ImportResult(
-        transactions: parsedTransactions,
-        receivables: parsedReceivables,
-        errors: errors,
-        successCount: successCount,
-        failedCount: failedCount,
-        isSchemaValid: true,
-      );
+      // ── Rigid path (backward compat) ─────────────
+      return _parseRigidRows(schema, rows);
     } catch (_) {
       return const ImportResult(
         errors: [
@@ -117,54 +115,278 @@ class ExcelParser {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  //  SCHEMA RESOLUTION
+  // ═══════════════════════════════════════════════════════════════
+
   _ExcelSchema? _resolveSchema(List<String> headers) {
+    // 1. Try rigid transaction schema
     if (_matchesHeaders(headers, _transactionHeaders) ||
         _matchesHeaders(headers, _transactionHeadersWithProduct)) {
       return _ExcelSchema.transaction;
     }
 
+    // 2. Try rigid receivable schema
     if (_matchesHeaders(headers, _receivableHeaders)) {
       return _ExcelSchema.receivable;
+    }
+
+    // 3. Flexible: check if ANY recognized column exists
+    final recognized =
+        headers.where((h) => _knownColumns.contains(h)).toList();
+    if (recognized.isNotEmpty) {
+      return _ExcelSchema.flexible;
     }
 
     return null;
   }
 
-  bool _matchesHeaders(List<String> actual, List<String> expected) {
-    if (actual.length != expected.length) {
-      return false;
-    }
+  // ═══════════════════════════════════════════════════════════════
+  //  FLEXIBLE PARSER
+  // ═══════════════════════════════════════════════════════════════
 
-    for (var i = 0; i < expected.length; i++) {
-      if (actual[i] != expected[i]) {
-        return false;
+  ImportResult _parseFlexibleRows(
+    List<String> headers,
+    List<List<Data?>> rows,
+  ) {
+    // Build column index map
+    final colIndex = <String, int>{};
+    for (var i = 0; i < headers.length; i++) {
+      final h = headers[i];
+      if (_knownColumns.contains(h) && !colIndex.containsKey(h)) {
+        colIndex[h] = i;
+      }
+      // Map aliases
+      if (h == 'income' && !colIndex.containsKey('sale')) {
+        colIndex['sale'] = i;
+      }
+      if (h == 'description' && !colIndex.containsKey('note')) {
+        colIndex['note'] = i;
+      }
+      if (h == 'product' && !colIndex.containsKey('productname')) {
+        colIndex['productname'] = i;
+      }
+      if (h == 'person' && !colIndex.containsKey('personname')) {
+        colIndex['personname'] = i;
+      }
+      if (h == 'vendorname' && !colIndex.containsKey('payable')) {
+        // vendorname column indicates payable entries — we'll read amount from 'payable' or 'amount'
+        colIndex['vendorname'] = i;
+      }
+      if (h == 'customername' && !colIndex.containsKey('receivable')) {
+        colIndex['customername'] = i;
       }
     }
 
-    return true;
-  }
+    // Determine capability
+    final hasExpenseCol = colIndex.containsKey('expense');
+    final hasSaleCol =
+        colIndex.containsKey('sale') || colIndex.containsKey('income');
+    final hasPayableCol = colIndex.containsKey('payable');
+    final hasReceivableCol = colIndex.containsKey('receivable');
 
-  List<String> _normalizeHeaders(List<Data?> row) {
-    final headers = row
-        .map((cell) => _cellToText(cell?.value).trim().toLowerCase())
-        .toList(growable: true);
+    final parsedTransactions = <TransactionEntity>[];
+    final parsedReceivables = <ReceivableEntity>[];
+    final errors = <String>[];
 
-    while (headers.isNotEmpty && headers.last.isEmpty) {
-      headers.removeLast();
-    }
+    for (var rowIndex = 1; rowIndex < rows.length; rowIndex++) {
+      final row = rows[rowIndex];
+      if (_isEmptyRow(row)) continue;
 
-    return headers;
-  }
+      try {
+        // ── Read common fields ────────────────────────────
+        final date = colIndex.containsKey('date')
+            ? _parseDate(_valueAt(row, colIndex['date']!))
+            : null;
+        final effectiveDate = date ?? DateTime.now();
 
-  bool _isEmptyRow(List<Data?> row) {
-    for (final cell in row) {
-      if (_cellToText(cell?.value).trim().isNotEmpty) {
-        return false;
+        final category = colIndex.containsKey('category')
+            ? _cellToText(_valueAt(row, colIndex['category']!)).trim()
+            : '';
+        final effectiveCategory =
+            category.isNotEmpty ? category : 'Imported';
+
+        final note = colIndex.containsKey('note')
+            ? _cellToText(_valueAt(row, colIndex['note']!)).trim()
+            : '';
+
+        final productName = colIndex.containsKey('productname')
+            ? _cellToText(_valueAt(row, colIndex['productname']!)).trim()
+            : null;
+        final effectiveProduct =
+            (productName != null && productName.isNotEmpty)
+                ? productName
+                : null;
+
+        final personName = colIndex.containsKey('personname')
+            ? _cellToText(_valueAt(row, colIndex['personname']!)).trim()
+            : null;
+        final effectivePerson =
+            (personName != null && personName.isNotEmpty)
+                ? personName
+                : null;
+
+        final dueDate = colIndex.containsKey('duedate')
+            ? _parseDate(_valueAt(row, colIndex['duedate']!))
+            : null;
+        final effectiveDueDate =
+            dueDate ?? DateTime.now().add(const Duration(days: 30));
+
+        // ── Expense transaction ────────────────────────────
+        if (hasExpenseCol) {
+          final expenseAmt =
+              _parseAmount(_valueAt(row, colIndex['expense']!));
+          if (expenseAmt != null && expenseAmt > 0) {
+            parsedTransactions.add(TransactionEntity(
+              id: '',
+              userId: '',
+              type: TxType.expense,
+              category: effectiveCategory,
+              amount: expenseAmt,
+              note: note,
+              date: effectiveDate,
+              source: 'excel_import',
+              personName: effectivePerson,
+              productName: effectiveProduct,
+            ));
+          }
+        }
+
+        // ── Sale / Income transaction ─────────────────────
+        if (hasSaleCol) {
+          final saleColKey =
+              colIndex.containsKey('sale') ? 'sale' : 'income';
+          final saleAmt =
+              _parseAmount(_valueAt(row, colIndex[saleColKey]!));
+          if (saleAmt != null && saleAmt > 0) {
+            parsedTransactions.add(TransactionEntity(
+              id: '',
+              userId: '',
+              type: TxType.sale,
+              category: effectiveCategory,
+              amount: saleAmt,
+              note: note,
+              date: effectiveDate,
+              source: 'excel_import',
+              personName: effectivePerson,
+              productName: effectiveProduct ?? 'Imported Sale',
+            ));
+          }
+        }
+
+        // ── Payable ledger entry ──────────────────────────
+        if (hasPayableCol) {
+          final payableAmt =
+              _parseAmount(_valueAt(row, colIndex['payable']!));
+          if (payableAmt != null && payableAmt > 0) {
+            final vendorName = colIndex.containsKey('vendorname')
+                ? _cellToText(_valueAt(row, colIndex['vendorname']!))
+                    .trim()
+                : '';
+            parsedReceivables.add(ReceivableEntity(
+              id: '',
+              userId: '',
+              entryType: LedgerEntryType.payable,
+              customerName: '',
+              vendorName: vendorName.isNotEmpty
+                  ? vendorName
+                  : (effectivePerson ?? 'Imported Vendor'),
+              amount: payableAmt,
+              dueDate: effectiveDueDate,
+              status: PaymentStatus.unpaid,
+              invoiceRef: null,
+              createdAt: DateTime.now(),
+              paidAt: null,
+            ));
+          }
+        }
+
+        // ── Receivable ledger entry ───────────────────────
+        if (hasReceivableCol) {
+          final receivableAmt =
+              _parseAmount(_valueAt(row, colIndex['receivable']!));
+          if (receivableAmt != null && receivableAmt > 0) {
+            final custName = colIndex.containsKey('customername')
+                ? _cellToText(_valueAt(row, colIndex['customername']!))
+                    .trim()
+                : '';
+            parsedReceivables.add(ReceivableEntity(
+              id: '',
+              userId: '',
+              entryType: LedgerEntryType.receivable,
+              customerName: custName.isNotEmpty
+                  ? custName
+                  : (effectivePerson ?? 'Imported Customer'),
+              vendorName: '',
+              amount: receivableAmt,
+              dueDate: effectiveDueDate,
+              status: PaymentStatus.unpaid,
+              invoiceRef: null,
+              createdAt: DateTime.now(),
+              paidAt: null,
+            ));
+          }
+        }
+      } catch (error) {
+        errors.add('Row ${rowIndex + 1}: ${error.toString()}');
       }
     }
 
-    return true;
+    final successCount =
+        parsedTransactions.length + parsedReceivables.length;
+
+    return ImportResult(
+      transactions: parsedTransactions,
+      receivables: parsedReceivables,
+      errors: errors,
+      successCount: successCount,
+      failedCount: errors.length,
+      isSchemaValid: true,
+    );
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  RIGID PARSER  (backward compat — old exact-header schemas)
+  // ═══════════════════════════════════════════════════════════════
+
+  ImportResult _parseRigidRows(_ExcelSchema schema, List<List<Data?>> rows) {
+    final parsedTransactions = <TransactionEntity>[];
+    final parsedReceivables = <ReceivableEntity>[];
+    final errors = <String>[];
+
+    for (var rowIndex = 1; rowIndex < rows.length; rowIndex++) {
+      final row = rows[rowIndex];
+      if (_isEmptyRow(row)) continue;
+
+      try {
+        if (schema == _ExcelSchema.transaction) {
+          final parsed = _parseTransactionRow(row);
+          parsedTransactions.add(parsed);
+        } else {
+          final parsed = _parseReceivableRow(row);
+          parsedReceivables.add(parsed);
+        }
+      } catch (error) {
+        errors.add('Row ${rowIndex + 1}: ${error.toString()}');
+      }
+    }
+
+    final successCount =
+        parsedTransactions.length + parsedReceivables.length;
+
+    return ImportResult(
+      transactions: parsedTransactions,
+      receivables: parsedReceivables,
+      errors: errors,
+      successCount: successCount,
+      failedCount: errors.length,
+      isSchemaValid: true,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  RIGID ROW PARSERS (unchanged)
+  // ═══════════════════════════════════════════════════════════════
 
   TransactionEntity _parseTransactionRow(List<Data?> row) {
     final date = _parseDate(_valueAt(row, 0));
@@ -248,6 +470,49 @@ class ExcelParser {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  //  SHARED UTILITIES
+  // ═══════════════════════════════════════════════════════════════
+
+  bool _matchesHeaders(List<String> actual, List<String> expected) {
+    if (actual.length != expected.length) {
+      return false;
+    }
+
+    for (var i = 0; i < expected.length; i++) {
+      if (actual[i] != expected[i]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  List<String> _normalizeHeaders(List<Data?> row) {
+    final headers = row
+        .map((cell) => _cellToText(cell?.value)
+            .trim()
+            .toLowerCase()
+            .replaceAll(RegExp(r'\s+'), ''))
+        .toList(growable: true);
+
+    while (headers.isNotEmpty && headers.last.isEmpty) {
+      headers.removeLast();
+    }
+
+    return headers;
+  }
+
+  bool _isEmptyRow(List<Data?> row) {
+    for (final cell in row) {
+      if (_cellToText(cell?.value).trim().isNotEmpty) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   CellValue? _valueAt(List<Data?> row, int index) {
     if (index < 0 || index >= row.length) {
       return null;
@@ -316,7 +581,7 @@ class ExcelParser {
     }
 
     final separatorMatch = RegExp(
-      r'^(\d{1,4})[\/-](\d{1,2})[\/-](\d{1,4})$',
+      r'^(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,4})$',
     ).firstMatch(text);
     if (separatorMatch != null) {
       final partA = int.tryParse(separatorMatch.group(1)!);

@@ -79,19 +79,10 @@ class TransactionRepositoryImpl {
         );
       }
 
-      if (type != null) {
-        query = query.where('type', isEqualTo: type.name);
-      }
-
-      final normalizedCategory = category?.trim() ?? '';
-      if (normalizedCategory.isNotEmpty) {
-        query = query.where('category', isEqualTo: normalizedCategory);
-      }
-
       query = query.orderBy('date', descending: true);
       final snapshot = await query.get();
 
-      return snapshot.docs
+      var transactions = snapshot.docs
           .map(
             (doc) => TransactionModel.fromFirestoreMap(
               doc.id,
@@ -99,7 +90,20 @@ class TransactionRepositoryImpl {
             ).toEntity(),
           )
           .toList();
-    } on FirebaseException {
+
+      if (type != null) {
+        transactions = transactions.where((tx) => tx.type == type).toList();
+      }
+
+      final normalizedCategory = category?.trim() ?? '';
+      if (normalizedCategory.isNotEmpty) {
+        transactions = transactions
+            .where((tx) => tx.category == normalizedCategory)
+            .toList();
+      }
+
+      return transactions;
+    } on FirebaseException catch (e) {
       return const [];
     } catch (_) {
       return const [];
