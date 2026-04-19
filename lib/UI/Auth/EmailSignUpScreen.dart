@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
 import 'package:solobytes/Widgets/AuthButton.dart';
 import 'package:solobytes/Widgets/AuthContainer.dart';
+import 'package:solobytes/theme/app_colors.dart';
+import 'package:solobytes/theme/app_text_styles.dart';
 
 class EmailSignUpScreen extends ConsumerStatefulWidget {
   const EmailSignUpScreen({super.key});
@@ -111,144 +113,116 @@ class _EmailSignUpScreenState extends ConsumerState<EmailSignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.background,
         elevation: 0,
-        surfaceTintColor: Colors.white,
-        foregroundColor: const Color(0xff111414),
-        title: const Text(
-          'Create Account',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
+        surfaceTintColor: AppColors.background,
+        foregroundColor: AppColors.textPrimary,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.scaffoldBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.arrow_back_ios_new, size: 16),
           ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            const Text(
-              'Start with Email',
-              style: TextStyle(
-                fontSize: 30,
-                color: Colors.black,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+
+              // ── Title Section ─────────────────────────
+              Text(
+                'Create Account',
+                style: AppTextStyles.heading1.copyWith(fontSize: 26),
               ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Create your account and continue to business setup.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xff778462),
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 8),
+              const Text(
+                'Create your account and continue to business setup.',
+                style: AppTextStyles.subtitle,
               ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              ' Full Name',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.black,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 32),
+
+              // ── Full Name ─────────────────────────────
+              const Text(' Full Name', style: AppTextStyles.label),
+              const SizedBox(height: 8),
+              AuthContainer(
+                text: 'Enter your name',
+                obscureText: false,
+                controller: _nameController,
+                prefixIcon: Icons.person_outline,
               ),
-            ),
-            const SizedBox(height: 8),
-            AuthContainer(
-              text: 'Enter your name',
-              obscureText: false,
-              controller: _nameController,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              ' Email',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.black,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 20),
+
+              // ── Email ─────────────────────────────────
+              const Text(' Email', style: AppTextStyles.label),
+              const SizedBox(height: 8),
+              AuthContainer(
+                text: 'Enter your email',
+                obscureText: false,
+                controller: _emailController,
+                prefixIcon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
               ),
-            ),
-            const SizedBox(height: 8),
-            AuthContainer(
-              text: 'Enter your email',
-              obscureText: false,
-              controller: _emailController,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              ' Password',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.black,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 20),
+
+              // ── Password ──────────────────────────────
+              const Text(' Password', style: AppTextStyles.label),
+              const SizedBox(height: 8),
+              AuthContainer(
+                text: 'Choose a password',
+                obscureText: true,
+                controller: _passwordController,
+                prefixIcon: Icons.lock_outline,
               ),
-            ),
-            const SizedBox(height: 8),
-            AuthContainer(
-              text: 'Choose a password',
-              obscureText: true,
-              controller: _passwordController,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              ' Confirm Password',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.black,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 20),
+
+              // ── Confirm Password ──────────────────────
+              const Text(' Confirm Password', style: AppTextStyles.label),
+              const SizedBox(height: 8),
+              AuthContainer(
+                text: 'Repeat your password',
+                obscureText: true,
+                controller: _confirmPasswordController,
+                prefixIcon: Icons.lock_outline,
               ),
-            ),
-            const SizedBox(height: 8),
-            AuthContainer(
-              text: 'Repeat your password',
-              obscureText: true,
-              controller: _confirmPasswordController,
-            ),
-            const SizedBox(height: 30),
-            AuthButton(
-              text: 'Create Account',
-              isLoading: _isLoading,
-              onpressed: _isLoading ? null : _submit,
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Already have an account? ',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Color(0xff778462),
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: _isLoading ? null : () => Navigator.of(context).pop(),
-                  child: const Text(
-                    'Sign In',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Color(0xff546A2F),
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w700,
+              const SizedBox(height: 32),
+
+              // ── Create Account Button ─────────────────
+              AuthButton(
+                text: 'Create Account',
+                isLoading: _isLoading,
+                onpressed: _isLoading ? null : _submit,
+              ),
+              const SizedBox(height: 24),
+
+              // ── Sign In Link ──────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Already have an account? ',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textSecondary,
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  GestureDetector(
+                    onTap: _isLoading ? null : () => Navigator.of(context).pop(),
+                    child: const Text('Sign In', style: AppTextStyles.link),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

@@ -4,6 +4,8 @@ import 'package:solobytes/Providers/auth_provider.dart';
 import 'package:solobytes/UI/Auth/EmailSignUpScreen.dart';
 import 'package:solobytes/Widgets/AuthButton.dart';
 import 'package:solobytes/Widgets/AuthContainer.dart';
+import 'package:solobytes/theme/app_colors.dart';
+import 'package:solobytes/theme/app_text_styles.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -102,199 +104,154 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isLoading = ref.watch(authActionLoadingProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              SizedBox(height: 25),
-              Align(
-                alignment: Alignment.topCenter,
-                child: Text(
-                  "Welcome Back",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    fontFamily: "Poppins",
-                  ),
-                ),
-              ),
-              SizedBox(height: 25),
-              Align(
-                alignment: Alignment.topCenter,
-                child: Text(
-                  "Sign In to CashPilot",
-                  style: TextStyle(
-                    fontSize: 32,
-                    color: Colors.black,
-                    fontFamily: "Poppins",
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              SizedBox(height: 15),
-              Align(
-                alignment: Alignment.topCenter,
-                child: Text(
-                  "Enter your credentials to Grow your Business",
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Color(0xff778462),
-                    fontFamily: "Poppins",
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              SizedBox(height: 15),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 40),
 
-              SizedBox(height: 15),
-
-              Align(
-                alignment: Alignment.topLeft,
-                child: Text(
-                  " Email",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black,
-                    fontFamily: "Poppins",
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              SizedBox(height: 8),
-              AuthContainer(
-                text: "Enter your email",
-                obscureText: false,
-                controller: emailController,
-              ),
-              SizedBox(height: 15),
-
-              Align(
-                alignment: Alignment.topLeft,
-                child: Text(
-                  " Password",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black,
-                    fontFamily: "Poppins",
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              SizedBox(height: 8),
-              AuthContainer(
-                text: "Enter your password",
-                obscureText: true,
-                controller: passwordController,
-              ),
-              SizedBox(height: 40),
-              AuthButton(
-                text: "Sign In",
-                isLoading: isLoading,
-                onpressed: isLoading ? null : _signInWithEmail,
-              ),
-              SizedBox(height: 35),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Don't have an account? ",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Color(0xff778462),
-                      fontFamily: "Poppins",
-                      fontWeight: FontWeight.w400,
+                // ── Green accent icon ────────────────────
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: AppColors.primary,
+                      size: 36,
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const EmailSignUpScreen(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      "Sign Up",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Color(0xff546A2F),
-                        fontFamily: "Poppins",
-                        fontWeight: FontWeight.w600,
-                      ),
+                ),
+                const SizedBox(height: 32),
+
+                // ── Titles ──────────────────────────────
+                Center(
+                  child: Text(
+                    'Welcome Back',
+                    style: AppTextStyles.subtitle.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                ],
-              ),
-              SizedBox(height: 40),
-              Row(
-                children: [
-                  Expanded(
-                    child: Divider(color: Color(0xff778462), thickness: 2),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Sign In to CashPilot',
+                    style: AppTextStyles.heading1.copyWith(fontSize: 26),
+                    textAlign: TextAlign.center,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      "or Login with",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xff778462),
-                        fontFamily: "Poppins",
-                        fontWeight: FontWeight.w400,
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Enter your credentials to grow your business',
+                    style: AppTextStyles.subtitle,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 36),
+
+                // ── Email Field ─────────────────────────
+                const Text(' Email', style: AppTextStyles.label),
+                const SizedBox(height: 8),
+                AuthContainer(
+                  text: 'Enter your email',
+                  obscureText: false,
+                  controller: emailController,
+                  prefixIcon: Icons.email_outlined,
+                ),
+                const SizedBox(height: 20),
+
+                // ── Password Field ──────────────────────
+                const Text(' Password', style: AppTextStyles.label),
+                const SizedBox(height: 8),
+                AuthContainer(
+                  text: 'Enter your password',
+                  obscureText: true,
+                  controller: passwordController,
+                  prefixIcon: Icons.lock_outline,
+                ),
+                const SizedBox(height: 32),
+
+                // ── Sign In Button ──────────────────────
+                AuthButton(
+                  text: 'Sign In',
+                  isLoading: isLoading,
+                  onpressed: isLoading ? null : _signInWithEmail,
+                ),
+                const SizedBox(height: 24),
+
+                // ── Sign Up Link ────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Don't have an account? ",
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: Divider(color: Colors.grey.shade500, thickness: 2),
-                  ),
-                ],
-              ),
-              SizedBox(height: 30),
-              AbsorbPointer(
-                absorbing: isLoading,
-                child: Opacity(
-                  opacity: isLoading ? 0.65 : 1,
-                  child: GestureDetector(
-                    onTap: _signInWithGoogle,
-                    child: Container(
-                      width: double.infinity,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Color(0xff778462), width: 1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          isLoading
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Color(0xff546A2F),
-                                  ),
-                                )
-                              : const Icon(Icons.g_mobiledata, size: 28),
-                          const SizedBox(width: 10),
-                          const Text(
-                            "Sign in with Google",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: "Poppins",
-                              fontWeight: FontWeight.w600,
-                            ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const EmailSignUpScreen(),
                           ),
-                        ],
+                        );
+                      },
+                      child: const Text('Sign Up', style: AppTextStyles.link),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                // ── Divider ─────────────────────────────
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Divider(color: AppColors.border, thickness: 1),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'or continue with',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textHint,
+                        ),
                       ),
+                    ),
+                    const Expanded(
+                      child: Divider(color: AppColors.border, thickness: 1),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // ── Google Button ────────────────────────
+                AbsorbPointer(
+                  absorbing: isLoading,
+                  child: Opacity(
+                    opacity: isLoading ? 0.6 : 1,
+                    child: AuthButton(
+                      text: 'Sign in with Google',
+                      isLoading: false,
+                      isOutlined: true,
+                      icon: Icons.g_mobiledata,
+                      onpressed: _signInWithGoogle,
                     ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),

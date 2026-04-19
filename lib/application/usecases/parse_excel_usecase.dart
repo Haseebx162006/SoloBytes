@@ -13,9 +13,9 @@ class ParseExcelUseCase {
     required Uint8List fileBytes,
   }) async {
     final normalizedName = fileName.trim().toLowerCase();
-    if (!normalizedName.endsWith('.xlsx')) {
+    if (!normalizedName.endsWith('.xlsx') && !normalizedName.endsWith('.xls')) {
       return const ImportResult(
-        errors: ['Only .xlsx files are supported.'],
+        errors: ['Only .xlsx and .xls files are supported.'],
         isSchemaValid: false,
       );
     }

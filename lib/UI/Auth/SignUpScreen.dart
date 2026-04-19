@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:solobytes/Providers/auth_provider.dart';
 import 'package:solobytes/Widgets/AuthButton.dart';
 import 'package:solobytes/Widgets/AuthContainer.dart';
+import 'package:solobytes/theme/app_colors.dart';
+import 'package:solobytes/theme/app_text_styles.dart';
 
 class signUP extends ConsumerStatefulWidget {
   const signUP({super.key});
@@ -93,196 +95,158 @@ class _signUPState extends ConsumerState<signUP> {
     final isLoading = ref.watch(businessSetupProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              SizedBox(height: 25),
-              Align(
-                alignment: Alignment.topCenter,
-                child: Text(
-                  "Business Setup",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    fontFamily: "Poppins",
-                  ),
-                ),
-              ),
-              SizedBox(height: 25),
-              Align(
-                alignment: Alignment.topCenter,
-                child: Text(
-                  "Complete Your Profile",
-                  style: TextStyle(
-                    fontSize: 32,
-                    color: Colors.black,
-                    fontFamily: "Poppins",
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              SizedBox(height: 15),
-              Align(
-                alignment: Alignment.topCenter,
-                child: Text(
-                  "Add business details to continue",
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Color(0xff778462),
-                    fontFamily: "Poppins",
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              SizedBox(height: 15),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 40),
 
-              Align(
-                alignment: Alignment.topLeft,
-                child: Text(
-                  " Business Name",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black,
-                    fontFamily: "Poppins",
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              SizedBox(height: 8),
-              AuthContainer(
-                text: "Enter business name",
-                obscureText: false,
-                controller: nameController,
-              ),
-
-              SizedBox(height: 15),
-
-              Align(
-                alignment: Alignment.topLeft,
-                child: Text(
-                  " Business Email (Optional)",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black,
-                    fontFamily: "Poppins",
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              SizedBox(height: 8),
-              AuthContainer(
-                text: "Enter business email",
-                obscureText: false,
-                controller: emailController,
-              ),
-              SizedBox(height: 15),
-
-              Align(
-                alignment: Alignment.topLeft,
-                child: Text(
-                  " Type of Business",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black,
-                    fontFamily: "Poppins",
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              SizedBox(height: 8),
-              AuthContainer(
-                text: "Enter business type",
-                obscureText: false,
-                controller: businessTypeController,
-              ),
-              SizedBox(height: 40),
-              AuthButton(
-                text: "Save & Continue",
-                isLoading: isLoading,
-                onpressed: isLoading ? null : _saveBusinessProfile,
-              ),
-              SizedBox(height: 35),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Use another account? ",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Color(0xff778462),
-                      fontFamily: "Poppins",
-                      fontWeight: FontWeight.w400,
+                // ── Green accent icon ────────────────────
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.storefront_rounded,
+                      color: AppColors.primary,
+                      size: 36,
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () async {
-                      await ref.read(authRepositoryProvider).signOut();
-                    },
-                    child: Text(
-                      "Sign Out",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Color(0xff546A2F),
-                        fontFamily: "Poppins",
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 40),
-              Row(
-                children: [
-                  Expanded(
-                    child: Divider(color: Color(0xff778462), thickness: 2),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      "or continue with",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xff778462),
-                        fontFamily: "Poppins",
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Divider(color: Colors.grey.shade500, thickness: 2),
-                  ),
-                ],
-              ),
-              SizedBox(height: 30),
-              Container(
-                width: double.infinity,
-                height: 50,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Color(0xff778462), width: 1),
-                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
+                const SizedBox(height: 32),
+
+                // ── Titles ──────────────────────────────
+                Center(
+                  child: Text(
+                    'Business Setup',
+                    style: AppTextStyles.subtitle.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Complete Your Profile',
+                    style: AppTextStyles.heading1.copyWith(fontSize: 26),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Center(
+                  child: Text(
+                    'Add business details to continue',
+                    style: AppTextStyles.subtitle,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 36),
+
+                // ── Business Name ───────────────────────
+                const Text(' Business Name', style: AppTextStyles.label),
+                const SizedBox(height: 8),
+                AuthContainer(
+                  text: 'Enter business name',
+                  obscureText: false,
+                  controller: nameController,
+                  prefixIcon: Icons.business_outlined,
+                ),
+                const SizedBox(height: 20),
+
+                // ── Business Email ──────────────────────
+                const Text(
+                  ' Business Email (Optional)',
+                  style: AppTextStyles.label,
+                ),
+                const SizedBox(height: 8),
+                AuthContainer(
+                  text: 'Enter business email',
+                  obscureText: false,
+                  controller: emailController,
+                  prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 20),
+
+                // ── Type of Business ────────────────────
+                const Text(' Type of Business', style: AppTextStyles.label),
+                const SizedBox(height: 8),
+                AuthContainer(
+                  text: 'Enter business type',
+                  obscureText: false,
+                  controller: businessTypeController,
+                  prefixIcon: Icons.category_outlined,
+                ),
+                const SizedBox(height: 32),
+
+                // ── Save Button ─────────────────────────
+                AuthButton(
+                  text: 'Save & Continue',
+                  isLoading: isLoading,
+                  onpressed: isLoading ? null : _saveBusinessProfile,
+                ),
+                const SizedBox(height: 24),
+
+                // ── Sign Out Link ───────────────────────
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.g_mobiledata, size: 24),
-                    SizedBox(width: 10),
                     Text(
-                      "Google",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: "Poppins",
-                        fontWeight: FontWeight.w600,
+                      'Use another account? ',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
                       ),
+                    ),
+                    GestureDetector(
+                      onTap: () async {
+                        await ref.read(authRepositoryProvider).signOut();
+                      },
+                      child: const Text('Sign Out', style: AppTextStyles.link),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 32),
+
+                // ── Divider ─────────────────────────────
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Divider(color: AppColors.border, thickness: 1),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'or continue with',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textHint,
+                        ),
+                      ),
+                    ),
+                    const Expanded(
+                      child: Divider(color: AppColors.border, thickness: 1),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // ── Google Button ────────────────────────
+                AuthButton(
+                  text: 'Google',
+                  isOutlined: true,
+                  icon: Icons.g_mobiledata,
+                  onpressed: () {},
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),

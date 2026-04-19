@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:solobytes/theme/app_colors.dart';
 
 class AuthContainer extends StatefulWidget {
   final String text;
   final TextEditingController controller;
   final bool obscureText;
+  final IconData? prefixIcon;
+  final TextInputType? keyboardType;
 
   const AuthContainer({
     super.key,
     required this.text,
     required this.obscureText,
     required this.controller,
+    this.prefixIcon,
+    this.keyboardType,
   });
 
   @override
@@ -17,35 +22,67 @@ class AuthContainer extends StatefulWidget {
 }
 
 class _AuthContainerState extends State<AuthContainer> {
+  late bool _obscure;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscure = widget.obscureText;
+  }
+
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: widget.controller,
-      obscureText: widget.obscureText,
+      obscureText: _obscure,
+      keyboardType: widget.keyboardType,
+      style: const TextStyle(
+        fontSize: 14,
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: AppColors.textPrimary,
+      ),
+      cursorColor: AppColors.primary,
       decoration: InputDecoration(
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        hint: Text(
-          widget.text,
-          style: TextStyle(
-            fontSize: 14,
-            color: Color(0xff778462),
-            fontFamily: "Poppins",
-            fontWeight: FontWeight.w500,
-          ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Color(0xff778462), width: 1),
+        hintText: widget.text,
+        hintStyle: const TextStyle(
+          fontSize: 14,
+          color: AppColors.textHint,
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.w400,
         ),
+        prefixIcon: widget.prefixIcon != null
+            ? Icon(widget.prefixIcon, color: AppColors.textHint, size: 20)
+            : null,
+        suffixIcon: widget.obscureText
+            ? IconButton(
+                icon: Icon(
+                  _obscure
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: AppColors.textHint,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              )
+            : null,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.background,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border, width: 1),
+        ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Color(0xff778462), width: 1),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Color(0xff778462), width: 2),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
       ),
     );
