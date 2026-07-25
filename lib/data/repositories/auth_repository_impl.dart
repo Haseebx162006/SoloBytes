@@ -239,20 +239,25 @@ class AuthRepositoryImpl implements AuthRepository {
       await userDocRef.set(userPayload, SetOptions(merge: true));
 
       // Keep legacy businessProfile doc in sync for backward compatibility.
-      final legacyDocRef = _businessProfileDoc(normalizedUserId);
-      final legacySnapshot = await legacyDocRef.get();
+      try {
+        final legacyDocRef = _businessProfileDoc(normalizedUserId);
+        final legacySnapshot = await legacyDocRef.get();
 
-      final legacyPayload = <String, dynamic>{
-        'businessName': trimmedName,
-        'businessType': trimmedType,
-        'businessEmail': resolvedEmail,
-      };
+        final legacyPayload = <String, dynamic>{
+          'businessName': trimmedName,
+          'businessType': trimmedType,
+          'businessEmail': resolvedEmail,
+        };
 
-      if (!legacySnapshot.exists) {
-        legacyPayload['createdAt'] = FieldValue.serverTimestamp();
+        if (!legacySnapshot.exists) {
+          legacyPayload['createdAt'] = FieldValue.serverTimestamp();
+        }
+
+        await legacyDocRef.set(legacyPayload, SetOptions(merge: true));
+      } catch (e) {
+        // Log/print the warning, but do not block onboarding if the user lacks permissions for this legacy path.
+        print('Warning: Failed to update legacy businessProfile document: $e');
       }
-
-      await legacyDocRef.set(legacyPayload, SetOptions(merge: true));
     } on FirebaseException catch (error) {
       throw AuthException(
         error.message ?? 'Unable to save business profile. Please try again.',
